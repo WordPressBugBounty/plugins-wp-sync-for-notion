@@ -1,0 +1,1 @@
+# plugins-wp-sync-for-notion
