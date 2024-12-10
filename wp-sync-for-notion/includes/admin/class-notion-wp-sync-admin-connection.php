@@ -87,7 +87,6 @@ class Notion_WP_Sync_Admin_Connection {
 			wp_enqueue_script( 'notion-wp-sync-sortable', plugins_url( 'assets/js/Sortable.min.js', NOTION_WP_SYNC_PLUGIN_FILE ), false, NOTION_WP_SYNC_VERSION, false );
 			wp_enqueue_script( 'notion-wp-sync-select2', plugins_url( 'assets/js/select2/select2.full.min.js', NOTION_WP_SYNC_PLUGIN_FILE ), false, NOTION_WP_SYNC_VERSION, false );
 			wp_enqueue_script( 'notion-wp-sync-admin', plugins_url( 'assets/js/admin-page.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-alpine', 'notion-wp-sync-sortable', 'notion-wp-sync-select2', 'jquery-ui-tooltip', 'wp-i18n' ), NOTION_WP_SYNC_VERSION, false );
-			wp_enqueue_script( 'notion-wp-sync-admin-metabox-mapping', plugins_url( 'assets/js/metabox-mapping/main.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-admin' ), NOTION_WP_SYNC_VERSION, false );
 			wp_add_inline_script( 'notion-wp-sync-admin', 'var notionWpSync = ' . $this->get_json_config(), 'before' );
 			wp_localize_script(
 				'notion-wp-sync-admin',
@@ -98,6 +97,9 @@ class Notion_WP_Sync_Admin_Connection {
 					'canceling'                => __( 'Canceling...', 'wp-sync-for-notion' ),
 				)
 			);
+			wp_set_script_translations( 'notion-wp-sync-admin', 'wp-sync-for-notion' );
+			wp_enqueue_script( 'notion-wp-sync-admin-metabox-mapping', plugins_url( 'assets/js/metabox-mapping/main.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-admin', 'wp-i18n' ), NOTION_WP_SYNC_VERSION, false );
+			wp_set_script_translations( 'notion-wp-sync-admin-metabox-mapping', 'wp-sync-for-notion' );
 		}
 	}
 

@@ -36,7 +36,6 @@ class Notion_WP_Sync {
 		add_filter( 'cron_schedules', array( $this, 'add_cron_schedules' ), 100 );
 		add_action( 'activated_plugin', array( $this, 'deactivate_other_instances' ) );
 		add_action( 'pre_current_active_plugins', array( $this, 'plugin_deactivated_notice' ) );
-		add_filter( 'load_textdomain_mofile', array( $this, 'load_textdomain_mofile' ), 10, 2 );
 
 		// Support for Yoast Duplicate Post.
 		// Once a connection is duplicated remove connection metas.
@@ -146,20 +145,6 @@ class Notion_WP_Sync {
 	 */
 	public function load_textdomain() {
 		load_plugin_textdomain( 'wp-sync-for-notion', false, dirname( NOTION_WP_SYNC_BASENAME ) . '/languages' );
-	}
-
-	/**
-	 * Use our own translation files for pro version
-	 *
-	 * @param string $mofile Path to the MO file.
-	 * @param string $domain Text domain. Unique identifier for retrieving translated strings.
-	 */
-	public function load_textdomain_mofile( $mofile, $domain ) {
-		if ( 'wp-sync-for-notion' === $domain && false !== strpos( $mofile, WP_LANG_DIR . '/plugins/' ) ) {
-			$locale = apply_filters( 'plugin_locale', determine_locale(), $domain );
-			$mofile = WP_PLUGIN_DIR . '/' . dirname( plugin_basename( __FILE__ ) ) . '/languages/' . $domain . '-' . $locale . '.mo';
-		}
-		return $mofile;
 	}
 
 	/**

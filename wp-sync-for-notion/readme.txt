@@ -2,10 +2,10 @@
 Author: WP connect
 Author URI: https://wpconnect.co/
 Contributors: wpconnectco, staurand
-Tags: wpconnect, notion, wordpress, api, automation, nocode, synchronization, integration
-Tested up to: 6.5
+Tags: wpconnect, notion, api, automation, synchronization
+Tested up to: 6.7
 Requires PHP: 7.0
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -110,41 +110,47 @@ If you need some assistance, open a ticket on the [Support](https://wordpress.or
 
 == Changelog ==
 
+= 1.6.0 =
+* Compatibility with WordPress 6.7
+* Fix: Keep empty paragraphs from Notion
+* Fix: broken translations
+
 = 1.5.0 =
-* Added: support for Embed block
-* Fix: missing styles in content (like background color)
-* Added: support for Yoast Duplicate Post for connections
+* Feature: Support for Embed block
+* Fix: Missing styles in content (like background color)
+* Feature: Support for Yoast Duplicate Post for connections
 
 = 1.4.0 =
-* Added: support for Notion toggle block
-* Fix can‘t select more than one page
-* Fix emoji for database without utf8mb4 support
+* Feature: Support for Notion toggle block
+* Fix: Can‘t select more than one page
+* Fix: Emoji for database without utf8mb4 support
 
 = 1.3.0 =
-* WordPress 6.4.1 compatibility
+* Compatibility with WordPress 6.4.1
 
 = 1.2.1 =
 * New branding
 
 = 1.2.0 =
-* WordPress 6.3.1 compatibility
-* Fix background color
+* Compatibility with WordPress 6.3.1
+* Fix: Background color
 
 = 1.1.0 =
 * Feature: Add Action Scheduler to handle large imports
-* Improvement: show sync progress and keep state when reloading
-* Improvement: add cancel sync button
-* Improvement: remove use of getmypid() function
-* Fix page search
+* Improvement: Show sync progress and keep state when reloading
+* Improvement: Add cancel sync button
+* Improvement: Remove use of getmypid() function
+* Fix: Page search
 
 = 1.0.1 =
-* WordPress 6.2 compatibility
+* Compatibility with WordPress 6.2
 
 = 1.0.0 =
 Initial release
 
 
 == Support ==
+
 If you need some assistance, open a ticket on the [Support](https://wordpress.org/support/plugin/wp-sync-for-notion/).
 
 

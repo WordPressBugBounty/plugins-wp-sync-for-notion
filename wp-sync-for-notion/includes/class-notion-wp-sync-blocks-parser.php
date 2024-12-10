@@ -182,11 +182,13 @@ class Notion_WP_Sync_Blocks_Parser {
 			$block_html = $this->rich_text_parser->parse_rich_text( $paragraph->rich_text );
 		}
 
-		if ( ! empty( $block_html ) ) {
-			$html_attributes = $this->generate_attributes_from_props( $block_props );
-			$block_html      = "<p$html_attributes>$block_html</p>";
-			$block_html      = $this->wrap_gut( $block_html, 'paragraph', $block_props );
+		if ( '' === $block_html ) {
+			$block_html = '&nbsp;';
 		}
+
+		$html_attributes = $this->generate_attributes_from_props( $block_props );
+		$block_html      = "<p$html_attributes>$block_html</p>";
+		$block_html      = $this->wrap_gut( $block_html, 'paragraph', $block_props );
 
 		return $html . $block_html;
 	}
