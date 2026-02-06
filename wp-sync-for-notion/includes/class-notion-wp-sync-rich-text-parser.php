@@ -15,26 +15,6 @@ namespace Notion_Wp_Sync;
 class Notion_WP_Sync_Rich_Text_Parser {
 
 	/**
-	 * Notion_WP_Sync_Rich_Text_Parser instance
-	 *
-	 * @var Notion_WP_Sync_Rich_Text_Parser $instance
-	 */
-	private static $instance;
-
-	/**
-	 * Returns Notion_WP_Sync_Rich_Text_Parser instance.
-	 *
-	 * @return Notion_WP_Sync_Rich_Text_Parser
-	 */
-	public static function get_instance() {
-		if ( empty( self::$instance ) ) {
-			self::$instance = new self();
-		}
-
-		return self::$instance;
-	}
-
-	/**
 	 * Parse rich texts objects.
 	 *
 	 * @param array $elements Rich texts objects.
@@ -42,6 +22,7 @@ class Notion_WP_Sync_Rich_Text_Parser {
 	 *     Optional. An array of options.
 	 *
 	 *     @type boolean $nl2br Convert line breaks to br? Default true. Accepts true or false.
+	 *     @type string $default_text_color The default text color to use. If empty or not set no default color will be set.
 	 * }
 	 *
 	 * @return string
@@ -50,7 +31,8 @@ class Notion_WP_Sync_Rich_Text_Parser {
 		$options = wp_parse_args(
 			$options,
 			array(
-				'nl2br' => true,
+				'nl2br'              => true,
+				'default_text_color' => '',
 			)
 		);
 		$html    = '';
@@ -95,15 +77,22 @@ class Notion_WP_Sync_Rich_Text_Parser {
 				}
 
 				$inline_style = '';
-				if ( isset( $element->annotations->color ) && 'default' !== $element->annotations->color && strpos( $element->annotations->color, '_background' ) === false ) {
-					$inline_style .= sprintf( 'color: %s;', $this->color_to_rgb( $element->annotations->color ) );
+				if ( isset( $element->annotations->color ) && strpos( $element->annotations->color, '_background' ) === false ) {
+					if ( 'default' !== $element->annotations->color ) {
+						$inline_style .= sprintf( 'color: %s;', $this->color_to_rgb( $element->annotations->color ) );
+					} elseif ( ! empty( $options['default_text_color'] ) ) {
+						list($r, $g, $b) = sscanf( $options['default_text_color'], '#%02x%02x%02x' );
+						if ( null !== $r && null !== $g && null !== $b ) {
+							$inline_style .= sprintf( 'color: %s;', sprintf( 'rgb(%d, %d, %d)', $r, $g, $b ) );
+						}
+					}
 				}
 				if ( isset( $element->annotations->color ) && 'default' !== $element->annotations->color && strpos( $element->annotations->color, '_background' ) !== false ) {
 					$inline_style .= sprintf( 'background-color: %s;', $this->bgcolor_to_rgb( $element->annotations->color ) );
 				}
 
 				if ( ! empty( $inline_style ) ) {
-					$element_html = sprintf( '<span style="%s">' . $element_html . '</span>', esc_attr( $inline_style ) );
+					$element_html = sprintf( '<span style="%s">%s</span>', esc_attr( $inline_style ), $element_html );
 				}
 			}
 
@@ -113,7 +102,7 @@ class Notion_WP_Sync_Rich_Text_Parser {
 				if ( strpos( $url, '/' ) === 0 ) {
 					$url = 'https://www.notion.so' . $url;
 				}
-				$element_html = sprintf( '<a href="%s">', esc_url( $url ) ) . $element_html . '</a>';
+				$element_html = sprintf( '<a href="%s">%s</a>', esc_url( $url ), $element_html );
 			}
 
 			$html .= $element_html;
@@ -198,5 +187,21 @@ class Notion_WP_Sync_Rich_Text_Parser {
 	 */
 	public function bgcolor_to_rgb( $color_name ) {
 		return $this->bg_color[ $color_name ] ?? $this->bg_color['default'];
+	}
+
+	/**
+	 * Generate rich text options from Importer.
+	 *
+	 * @param Notion_WP_Sync_Abstract_Importer $importer The importer.
+	 *
+	 * @return array
+	 */
+	public function get_rich_text_options_from_importer( $importer ) {
+		$rich_text_options = array();
+		$importer_config   = $importer->config();
+		if ( $importer_config->get( 'default_text_color' ) ) {
+			$rich_text_options['default_text_color'] = $importer_config->get( 'default_text_color' );
+		}
+		return $rich_text_options;
 	}
 }

@@ -40,22 +40,28 @@ class Notion_WP_Sync_Metabox_Global_Settings {
 	 */
 	public function display() {
 		global $post;
-		$config_array = json_decode( $post->post_content, true );
-		$config       = new Notion_WP_Sync_Importer_Settings( $config_array );
-		$client       = new Notion_WP_Sync_Notion_Api_Client( $config->get( 'api_key' ) );
-		$object_type  = $config->get( 'object_type' );
-		$objects_id   = $config->get( 'objects_id' );
+
+		if ( in_array( $post->post_status, array( 'publish', 'draft' ), true ) ) {
+			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post->ID );
+			$client   = $importer->get_api_client();
+
+			$object_type = $importer->config()->get( 'object_type' );
+			$objects_id  = $importer->config()->get( 'objects_id' );
+		} else {
+			$objects_id = array();
+		}
 
 		$default_objects = array(
-			'page' => array(),
+			'page'     => array(),
+			'database' => array(),
 		);
-		if ( ! is_array( $objects_id ) ) {
+		if ( ! is_array( $objects_id ) || empty( $objects_id ) ) {
 			$objects = $default_objects;
 		} else {
 			// @TODO: try / catch
 			$objects = array_reduce(
 				$objects_id,
-				function ( $result, $object_id ) use ( $client, $object_type ) {
+				function ( $result, $object_id ) use ( $client, $object_type, $importer ) {
 					$object = null;
 					if ( 'page' === $object_type ) {
 						$object = $client->get_page( $object_id );
@@ -70,6 +76,9 @@ class Notion_WP_Sync_Metabox_Global_Settings {
 				$default_objects
 			);
 		}
+		if ( ! isset( $objects['database'] ) ) {
+			$objects['database'] = array();
+		}
 		$view = include_once NOTION_WP_SYNC_PLUGIN_DIR . 'views/metabox-notion-settings.php';
 		$view( $objects );
 	}
@@ -82,22 +91,30 @@ class Notion_WP_Sync_Metabox_Global_Settings {
 	public function get_notion_objects() {
 		// Nonce check.
 		check_ajax_referer( 'notion-wp-sync-ajax', 'nonce' );
-
-		$api_key     = isset( $_POST['apiKey'] ) ? sanitize_text_field( wp_unslash( $_POST['apiKey'] ) ) : '';
-		$object_type = isset( $_POST['objectType'] ) ? sanitize_text_field( wp_unslash( $_POST['objectType'] ) ) : '';
+		Notion_WP_Sync_Helpers::check_ajax_admin_user_access();
 
 		// Data check.
-		if ( empty( $api_key ) || empty( $object_type ) || 'page' !== $object_type ) {
+		if ( empty( $_POST['apiKey'] ) ) {
 			wp_die();
 		}
 
-		$term = sanitize_text_field( wp_unslash( $_POST['term'] ?? '' ) );
+		// Get data.
+		$params      = array_merge( $_POST );
+		$params      = wp_unslash( $params );
+		$api_key     = sanitize_text_field( $params['apiKey'] );
+		$object_type = sanitize_text_field( $params['objectType'] );
+		if ( ! in_array( $object_type, array( 'database', 'page' ), true ) ) {
+			$object_type = '';
+		}
+		$term = sanitize_text_field( $params['term'] ?? '' );
 
 		try {
 			$client = new Notion_WP_Sync_Notion_Api_Client( $api_key );
 			$result = array();
 			if ( 'page' === $object_type ) {
-				$result = $client->list_pages( array( 'page_size' => 10 ), $term );
+				$result = $client->list_pages( array( 'page_size' => 10 ), $term, 10 );
+			} else {
+				$result = $client->search( array( 'page_size' => 10 ), 10 );
 			}
 
 			wp_send_json_success(

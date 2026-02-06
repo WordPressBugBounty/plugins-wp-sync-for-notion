@@ -16,16 +16,9 @@ class Notion_WP_Sync {
 	/**
 	 * List of available importers.
 	 *
-	 * @var Notion_WP_Sync_Importer[]
+	 * @var Notion_WP_Sync_Abstract_Importer[]
 	 */
 	protected $importers = array();
-
-	/**
-	 * Plugin settings.
-	 *
-	 * @var Notion_WP_Sync_Options
-	 */
-	protected $options;
 
 	/**
 	 * Constructor
@@ -36,11 +29,11 @@ class Notion_WP_Sync {
 		add_filter( 'cron_schedules', array( $this, 'add_cron_schedules' ), 100 );
 		add_action( 'activated_plugin', array( $this, 'deactivate_other_instances' ) );
 		add_action( 'pre_current_active_plugins', array( $this, 'plugin_deactivated_notice' ) );
+		add_filter( 'notionwpsync/get_importers', array( $this, 'get_importers' ) );
 
 		// Support for Yoast Duplicate Post.
 		// Once a connection is duplicated remove connection metas.
 		add_action( 'duplicate_post_post_copy', array( $this, 'clean_up_after_duplicate' ), 10, 1 );
-
 		// phpcs:enable
 	}
 
@@ -48,31 +41,33 @@ class Notion_WP_Sync {
 	 * Init plugin.
 	 */
 	public function init() {
-		$this->load_textdomain();
+		$this->init_services();
 		$this->setup();
-		$this->load_importers();
 
-		$this->options = new Notion_WP_Sync_Options();
+		// Init Modules.
+		new Notion_WP_Sync_Post_Module();
+		do_action( 'notionwpsync/register_module' );
+
+		$this->load_importers();
 
 		// Admin.
 		if ( is_admin() ) {
-			new Notion_WP_Sync_Admin( $this->importers );
+			$services = Notion_WP_Sync_Services::get_instance();
+			new Notion_WP_Sync_Admin( $services->get( 'options' ) );
 		}
 
 		// Initalize WP_CLI only in cli mode.
 		if ( class_exists( 'WP_CLI' ) ) {
-			WP_CLI::add_command( 'wp-sync-for-notion', new Notion_WP_Sync_CLI( $this->importers ) );
+			WP_CLI::add_command( 'wp-sync-for-notion', new Notion_WP_Sync_CLI() );
 		}
 
-		new Notion_WP_Sync_Action_Consumer( $this->importers );
+		new Notion_WP_Sync_Action_Consumer();
 
 		// Init API.
-		new Notion_WP_Sync_Api_Import_Route( $this->importers );
+		new Notion_WP_Sync_Api_Import_Route();
 
-		// Init Destinations with Formatters.
-		new Notion_WP_Sync_Post_Destination();
-		new Notion_WP_Sync_Meta_Destination();
-		new Notion_WP_Sync_Taxonomy_Destination( new Notion_WP_Sync_Terms_Formatter() );
+		// Init Destinations.
+		do_action( 'notionwpsync/register_destination' );
 
 		// Init Notion page properties.
 		Notion_WP_Sync_Notion_Page::init();
@@ -141,10 +136,33 @@ class Notion_WP_Sync {
 	}
 
 	/**
-	 * Load translations
+	 * Init services.
+	 * Services are objects that can be shared across the plugin.
+	 * They are stored in a container and can be retrieved using the `get` method.
+	 *
+	 * @return void
+	 * @throws \Exception "{$dependency} not found".
 	 */
-	public function load_textdomain() {
-		load_plugin_textdomain( 'wp-sync-for-notion', false, dirname( NOTION_WP_SYNC_BASENAME ) . '/languages' );
+	public function init_services() {
+		$services = Notion_WP_Sync_Services::get_instance();
+		$services->set( 'rich_text_parser', new Notion_WP_Sync_Rich_Text_Parser() );
+		$services->set( 'attachment_manager', new Notion_WP_Sync_Attachments_Manager() );
+		$services->set(
+			'block_parser',
+			new Notion_WP_Sync_Blocks_Parser(
+				$services->get( 'rich_text_parser' ),
+				$services->get( 'attachment_manager' )
+			)
+		);
+		$services->set(
+			'notion_api_client_class_factory',
+			static function ( $token ) {
+				return new Notion_WP_Sync_Notion_Api_Client( $token );
+			}
+		);
+		$services->set( 'options', new Notion_WP_Sync_Options() );
+
+		do_action( 'notionwpsync/init_services', $services );
 	}
 
 	/**
@@ -170,6 +188,13 @@ class Notion_WP_Sync {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Importers getter
+	 */
+	public function get_importers() {
+		return $this->importers;
 	}
 
 	/**
@@ -220,24 +245,32 @@ class Notion_WP_Sync {
 				Notion_WP_Sync_Email_Field::class,
 				Notion_WP_Sync_Phone_Number_Field::class,
 				Notion_WP_Sync_People_Field::class,
+				Notion_WP_Sync_Formula_Field::class,
 			)
 		);
+
+		do_action( 'notionwpsync/register_field' );
 	}
 
 	/**
 	 * Load available importers.
 	 */
 	protected function load_importers() {
+		$post_statuses  = is_admin() ? array( 'publish', 'draft' ) : array( 'publish' );
 		$importer_posts = get_posts(
 			array(
 				'post_type'      => 'nwpsync-connection',
-				'post_status'    => array( 'publish' ),
+				'post_status'    => $post_statuses,
 				'posts_per_page' => -1,
 			)
 		);
 
 		foreach ( $importer_posts as $importer_post ) {
-			$this->importers[] = new Notion_WP_Sync_Importer( $importer_post );
+			$module_slug = Notion_WP_Sync_Helpers::get_importer_module( $importer_post );
+			$module      = Notion_WP_Sync_Helpers::get_module_by_slug( $module_slug );
+			if ( $module ) {
+				$this->importers[] = $module->get_importer_instance( $importer_post );
+			}
 		}
 	}
 
@@ -253,7 +286,7 @@ class Notion_WP_Sync {
 			return;
 		}
 
-		if ( 'ntwpsync-connection' !== get_post_type( $new_post_id ) ) {
+		if ( 'nwpsync-connection' !== get_post_type( $new_post_id ) ) {
 			return;
 		}
 

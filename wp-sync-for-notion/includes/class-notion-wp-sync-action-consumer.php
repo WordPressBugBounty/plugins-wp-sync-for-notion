@@ -5,26 +5,17 @@
  * @package Notion_Wp_Sync
  */
 
-namespace Notion_WP_Sync;
+namespace Notion_Wp_Sync;
 
 /**
  * Notion_WP_Sync_Action_Consumer class.
  */
 class Notion_WP_Sync_Action_Consumer {
-	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
 
 	/**
 	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Available importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
+	public function __construct() {
 		add_action( 'notionwpsync_process_records', array( $this, 'consume' ), 10, 4 );
 	}
 
@@ -37,7 +28,7 @@ class Notion_WP_Sync_Action_Consumer {
 	 */
 	public function consume( $importer_id, $run_id, $item_id ) {
 		// Get importer instance from id.
-		$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $importer_id );
+		$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $importer_id );
 		if ( ! $importer ) {
 			return;
 		}
@@ -49,10 +40,10 @@ class Notion_WP_Sync_Action_Consumer {
 
 		foreach ( $records as $record ) {
 			// Import record.
-			$post_id = $importer->process_notion_record( $record );
-			// Temporarily save created or saved post ID.
-			if ( ! empty( $post_id ) && ! is_wp_error( $post_id ) ) {
-				$this->append_run_result( $post_id, $importer );
+			$content_id = $importer->process_notion_record( $record );
+			// Temporarily save created or saved content ID.
+			if ( ! empty( $content_id ) && ! is_wp_error( $content_id ) ) {
+				$this->append_run_result( $content_id, $importer );
 			}
 		}
 
@@ -60,7 +51,7 @@ class Notion_WP_Sync_Action_Consumer {
 		delete_option( $item_id );
 
 		if ( $run_id === $importer->get_run_id() && 0 === $this->get_remaining_actions_count( $importer_id, $run_id ) ) {
-			$importer->delete_removed_posts();
+			$importer->delete_removed_contents();
 			$importer->end_run( 'success' );
 		}
 	}
@@ -93,17 +84,22 @@ class Notion_WP_Sync_Action_Consumer {
 	}
 
 	/**
-	 * Append new post_id to the run result
+	 * Append new content_id to the run result
 	 *
-	 * @param int                     $post_id Post id.
-	 * @param Notion_WP_Sync_Importer $importer Importer.
+	 * @param int|null                         $content_id The object id from WordPress.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
 	 */
-	protected function append_run_result( $post_id, $importer ) {
-		$post_ids = get_post_meta( $importer->infos()->get( 'id' ), 'post_ids', true );
-		if ( ! is_array( $post_ids ) ) {
-			$post_ids = array();
+	protected function append_run_result( $content_id, $importer ) {
+		$content_ids = get_post_meta( $importer->infos()->get( 'id' ), 'content_ids', true );
+
+		if ( ! is_array( $content_ids ) ) {
+			// Make sure the connection did not have "post_ids" set before the module update.
+			$content_ids = get_post_meta( $importer->infos()->get( 'id' ), 'post_ids', true );
+			if ( ! is_array( $content_ids ) ) {
+				$content_ids = array();
+			}
 		}
-		$post_ids[] = $post_id;
-		update_post_meta( $importer->infos()->get( 'id' ), 'post_ids', $post_ids );
+		$content_ids[] = $content_id;
+		update_post_meta( $importer->infos()->get( 'id' ), 'content_ids', $content_ids );
 	}
 }

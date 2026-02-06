@@ -18,7 +18,7 @@ class Notion_WP_Sync_Page_Model extends Notion_WP_Sync_Abstract_Model implements
 	 * @return string
 	 */
 	public function get_name(): string {
-		return isset( $this->data->properties->title->title ) ? Notion_WP_Sync_Rich_Text_Parser::get_instance()->to_plain_text( $this->data->properties->title->title ) : '';
+		return isset( $this->data->properties->title->title ) ? Notion_WP_Sync_Services::get_instance()->get( 'rich_text_parser' )->to_plain_text( $this->data->properties->title->title ) : '';
 	}
 
 	/**

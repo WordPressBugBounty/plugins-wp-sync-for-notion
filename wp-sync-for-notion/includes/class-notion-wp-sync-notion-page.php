@@ -23,7 +23,8 @@ class Notion_WP_Sync_Notion_Page {
 		add_filter( 'notionwpsync/notion-model/register-fields', self::class . '::register_cover_field', 10, 2 );
 		add_filter( 'notionwpsync/notion-model/register-fields', self::class . '::register_blocks_field', 10, 2 );
 		// Load blocks only when required.
-		add_filter( 'notionwpsync/importer/page', self::class . '::populate_pages_blocks', 10, 2 );
+		add_filter( 'notionwpsync/importer/page', self::class . '::maybe_populate_blocks', 10, 2 );
+		add_filter( 'notionwpsync/importer/page-expand', self::class . '::populate_blocks', 10, 2 );
 	}
 
 	/**
@@ -74,7 +75,7 @@ class Notion_WP_Sync_Notion_Page {
 					(object) array(
 						'id'   => 'external',
 						'type' => 'file',
-						'name' => 'icon',
+						'name' => Notion_WP_Sync_Helpers::get_filename_from_url( $data->icon->external->url ) ?? 'icon',
 						'file' => (object) array(
 							'url' => $data->icon->external->url,
 						),
@@ -85,7 +86,7 @@ class Notion_WP_Sync_Notion_Page {
 					(object) array(
 						'id'   => 'file',
 						'type' => 'file',
-						'name' => 'icon',
+						'name' => Notion_WP_Sync_Helpers::get_filename_from_url( $data->icon->file->url ) ?? 'icon',
 						'file' => (object) array(
 							'url' => $data->icon->file->url,
 						),
@@ -131,7 +132,7 @@ class Notion_WP_Sync_Notion_Page {
 					(object) array(
 						'id'   => 'external',
 						'type' => 'file',
-						'name' => 'cover',
+						'name' => Notion_WP_Sync_Helpers::get_filename_from_url( $data->cover->external->url ) ?? 'cover',
 						'file' => (object) array(
 							'url' => $data->cover->external->url,
 						),
@@ -142,7 +143,7 @@ class Notion_WP_Sync_Notion_Page {
 					(object) array(
 						'id'   => 'file',
 						'type' => 'file',
-						'name' => 'cover',
+						'name' => Notion_WP_Sync_Helpers::get_filename_from_url( $data->cover->file->url ) ?? 'cover',
 						'file' => (object) array(
 							'url' => $data->cover->file->url,
 						),
@@ -171,44 +172,63 @@ class Notion_WP_Sync_Notion_Page {
 	 *
 	 * @return array
 	 */
-	public static function register_blocks_field( $properties_objects, $data ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-		$properties_objects[] = ( new Notion_WP_Sync_Blocks_Field(
-			(object) array(
-				'id'                    => '__notionwpsync_blocks',
-				'type'                  => '__notionwpsync_blocks',
-				'name'                  => __( 'Page content', 'wp-sync-for-notion' ),
-				'__notionwpsync_blocks' => array(),
-			)
-		) )->set_group( __( 'Page', 'wp-sync-for-notion' ) );
-
+	public static function register_blocks_field( $properties_objects, $data ) {
+		if ( 'page' === $data->object || 'database' === $data->object ) {
+			$properties_objects[] = ( new Notion_WP_Sync_Blocks_Field(
+				(object) array(
+					'id'                              => '__notionwpsync_blocks',
+					'type'                            => '__notionwpsync_blocks',
+					'name'                            => __( 'Page content', 'wp-sync-for-notion' ),
+					'page_id'                         => 'page' === $data->object ? $data->id : null,
+					'__notionwpsync_blocks'           => array(),
+					'__notionwpsync_blocks_processed' => false,
+				)
+			) )->set_group( __( 'Page', 'wp-sync-for-notion' ) );
+		}
 		return $properties_objects;
+	}
+
+	/**
+	 * Populate page blocks if we are importing pages not database in the "notionwpsync/importer/page" hook.
+	 *
+	 * @param Notion_WP_Sync_Page_Model        $page Page.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
+	 *
+	 * @return Notion_WP_Sync_Page_Model
+	 */
+	public static function maybe_populate_blocks( $page, $importer ) {
+		if ( 'page' === $importer->config()->get( 'object_type' ) ) {
+			self::populate_blocks( $page, $importer );
+		}
+		return $page;
 	}
 
 	/**
 	 * Populate page blocks.
 	 *
-	 * @param Notion_WP_Sync_Page_Model $page Page.
-	 * @param Notion_WP_Sync_Importer   $importer Importer.
+	 * @param Notion_WP_Sync_Page_Model        $page Page.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
 	 *
 	 * @return Notion_WP_Sync_Page_Model
 	 */
-	public static function populate_pages_blocks( $page, $importer ) {
+	public static function populate_blocks( $page, $importer ) {
 		$record_fields = $page->get_fields();
 		// Get all blocks fields (from the current page + potentially ones from relations fields).
 		$block_fields = array_filter(
 			$record_fields,
 			function ( $field ) {
-				return strpos( $field->get_id(), '__notionwpsync_blocks' ) !== false;
+				return strpos( $field->get_id(), '__notionwpsync_blocks' ) !== false && ! $field->get_data()->__notionwpsync_blocks_processed;
 			}
 		);
 		foreach ( $block_fields as $block_field ) {
 			$blocks                                  = $importer->get_api_client()->get_blocks( $page->get_id() );
 			$record_fields[ $block_field->get_id() ] = ( new Notion_WP_Sync_Blocks_Field(
 				(object) array(
-					'id'                    => $block_field->get_id(),
-					'type'                  => '__notionwpsync_blocks',
-					'name'                  => __( 'Content', 'wp-sync-for-notion' ),
-					'__notionwpsync_blocks' => $blocks,
+					'id'                              => $block_field->get_id(),
+					'type'                            => '__notionwpsync_blocks',
+					'name'                            => __( 'Content', 'wp-sync-for-notion' ),
+					'__notionwpsync_blocks'           => $blocks,
+					'__notionwpsync_blocks_processed' => true,
 				)
 			) )->set_group( $block_field->get_group() );
 		}

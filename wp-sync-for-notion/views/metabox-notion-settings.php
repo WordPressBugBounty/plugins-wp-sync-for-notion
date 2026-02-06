@@ -40,7 +40,15 @@ return function ( $objects ) {
 		</th>
 		<td>
 			<div :class="'notionwpsync-field form-required ' + getValidationCssClass('apiKey')">
-				<input class="regular-text ltr" name="api_key" type="text" x-model="config.api_key" x-on:change="showNoticeHandler('connection-warning')"/>
+				<input
+					x-model="config.api_key"
+					type="text"
+					name="api_key" type="text"
+					class="regular-text ltr"
+					:class="{'notionwpsync-field--invalid': hasErrors('api_key')}"
+					data-rules='["required"]'
+					x-on:change="showNoticeHandler('connection-warning')"
+				/>
 				<p x-show="validation.apiKey && !validation.apiKey.valid" x-html="validation.apiKey && validation.apiKey.message"></p>
 			</div>
 		</td>

@@ -1,0 +1,71 @@
+== Changelog ==
+=== WP Sync for Notion - Notion to WordPress ===
+
+= 1.7.1 =
+*Release Date: 20th Jan. 2026*
+
+* Security: Fix Broken Access Control ; add missing user capability check on ajax request
+
+= 1.7.0 =
+*Release Date: 16th Dec. 2025*
+
+* Compatibility with WordPress 6.9
+* Fix: % symbol could break block parsing
+* Fix: filenames with two dots in blocks could lead to an error
+* Feature: support for default text color
+
+= 1.6.0 =
+*Release Date: 10th Dec. 2024*
+
+* Compatibility with WordPress 6.7
+* Fix: Keep empty paragraphs from Notion
+* Fix: broken translations
+
+= 1.5.0 =
+*Release Date: 14th July 2024*
+
+* Feature: Support for Embed block
+* Fix: Missing styles in content (like background color)
+* Feature: Support for Yoast Duplicate Post for connections
+
+= 1.4.0 =
+*Release Date: 20th Feb. 2024*
+
+* Feature: Support for Notion toggle block
+* Fix: Can‘t select more than one page
+* Fix: Emoji for database without utf8mb4 support
+
+= 1.3.0 =
+*Release Date: 21th Nov. 2023*
+
+* Compatibility with WordPress 6.4.1
+
+= 1.2.1 =
+*Release Date: 23th Oct. 2023*
+
+* New branding
+
+= 1.2.0 =
+*Release Date: 10th Oct. 2023*
+
+* Compatibility with WordPress 6.3.1
+* Fix: Background color
+
+= 1.1.0 =
+*Release Date: 04th July 2023*
+
+* Feature: Add Action Scheduler to handle large imports
+* Improvement: Show sync progress and keep state when reloading
+* Improvement: Add cancel sync button
+* Improvement: Remove use of getmypid() function
+* Fix: Page search
+
+= 1.0.1 =
+*Release Date: 09th May 2023*
+
+* Compatibility with WordPress 6.2
+
+= 1.0.0 =
+*Release Date: 14th March 2023*
+
+Initial release

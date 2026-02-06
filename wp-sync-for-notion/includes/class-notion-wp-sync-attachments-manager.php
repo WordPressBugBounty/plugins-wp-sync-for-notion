@@ -13,30 +13,11 @@ namespace Notion_Wp_Sync;
  * @TODO: define $media structure, new class? see notion_file_to_media
  */
 class Notion_WP_Sync_Attachments_Manager {
-	/**
-	 * Notion_WP_Sync_Attachments_Manager instance
-	 *
-	 * @var Notion_WP_Sync_Attachments_Manager $instance
-	 */
-	private static $instance;
-
-	/**
-	 * Returns Notion_WP_Sync_Attachments_Manager instance
-	 *
-	 * @return Notion_WP_Sync_Attachments_Manager
-	 */
-	public static function get_instance() {
-		if ( empty( self::$instance ) ) {
-			self::$instance = new self();
-		}
-
-		return self::$instance;
-	}
 
 	/**
 	 * Importer.
 	 *
-	 * @var Notion_WP_Sync_Importer
+	 * @var Notion_WP_Sync_Abstract_Importer
 	 */
 	protected $importer;
 
@@ -44,9 +25,9 @@ class Notion_WP_Sync_Attachments_Manager {
 	 * Import / update media from a list.
 	 * Return imported attachments id.
 	 *
-	 * @param array                   $value A list of files to import.
-	 * @param Notion_WP_Sync_Importer $importer Importer.
-	 * @param int|null                $post_id Post id to attach the media to.
+	 * @param array                            $value A list of files to import.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
+	 * @param int|null                         $post_id Post id to attach the media to.
 	 *
 	 * @return array
 	 */
@@ -127,7 +108,7 @@ class Notion_WP_Sync_Attachments_Manager {
 
 			$result = $this->fetch_media( $media->url, $filename, null, $media_data );
 			if ( is_wp_error( $result ) ) {
-				$this->log( sprintf( '- ERROR: %s', $result->get_error_message() ), 'error' );
+				$this->log( sprintf( '- ERROR: %s, media: %s', $result->get_error_message(), wp_json_encode( $media ) ), 'error' );
 			} else {
 				$this->log( sprintf( '- Success media %s', $result ) );
 				$attachment_id = $result;
@@ -160,14 +141,12 @@ class Notion_WP_Sync_Attachments_Manager {
 		if ( empty( $url ) || ! wp_http_validate_url( $url ) ) {
 			return new \WP_Error( 'notion_wp_sync_fetch_media_invalid_url', 'Invalid URL.' );
 		}
-
 		// Download file to temp location.
 		$temp_file = download_url( $url );
 
 		if ( empty( $filename ) ) {
 			$filename = basename( urldecode( $url ) );
 		}
-
 		// Try to guess file extension from type field.
 		if ( ! pathinfo( $filename, PATHINFO_EXTENSION ) ) {
 			$mime_to_ext = apply_filters(
@@ -183,6 +162,7 @@ class Notion_WP_Sync_Attachments_Manager {
 			);
 			// Get file mimie type.
 			$mime_type = wp_get_image_mime( $temp_file );
+
 			// Get file extension from it.
 			if ( ! empty( $mime_to_ext[ $mime_type ] ) ) {
 				$extension = $mime_to_ext[ $mime_type ];
@@ -270,8 +250,12 @@ class Notion_WP_Sync_Attachments_Manager {
 	 *
 	 * @param \stdClass $media Media.
 	 */
-	protected function generate_hash( $media ) {
-		return md5( wp_json_encode( $media ) );
+	public function generate_hash( $media ) {
+		$media_with_url_cleaned_up = clone $media;
+		if ( isset( $media_with_url_cleaned_up->url ) ) {
+			$media_with_url_cleaned_up->url = explode( '?', $media_with_url_cleaned_up->url )[0];
+		}
+		return md5( wp_json_encode( $media_with_url_cleaned_up ) );
 	}
 
 	/**
@@ -292,17 +276,51 @@ class Notion_WP_Sync_Attachments_Manager {
 	 * @param string    $block_id Block id.
 	 * @param string    $filename File name.
 	 * @param \stdClass $file_object File props.
-	 * @param string    $file_ext File extension.
+	 * @param string    $file_ext File extension if $filename does not have one.
 	 *
 	 * @return object
 	 */
 	public function notion_file_to_media( $block_id, $filename, $file_object, $file_ext = '' ) {
 		$url           = $file_object->{$file_object->type}->url;
-		$ressource_url = remove_query_arg( array( 'X-Amz-Signature', 'X-Amz-Credential', 'X-Amz-Date' ), $url );
+		$ressource_url = explode( '?', $url )[0];
 		return (object) array(
 			'id'       => md5( $block_id . '_' . $ressource_url ),
-			'filename' => sanitize_title( $filename ) . '.' . $file_ext,
+			'filename' => sanitize_file_name( $filename ) . ( ! empty( $file_ext ) ? '.' . $file_ext : '' ),
 			'url'      => $url,
 		);
+	}
+
+	/**
+	 * Retrieves an image to represent an attachment.
+	 * Just call wp_get_attachment_image_src(), allow to mock it.
+	 *
+	 * @param int          $attachment_id Image attachment ID.
+	 * @param string|int[] $size Optional. Image size. Accepts any registered image size name, or an array of
+	 *                                     width and height values in pixels (in that order). Default 'thumbnail'.
+	 * @param bool         $icon Optional. Whether the image should fall back to a mime type icon. Default false.
+	 *
+	 * @return array|false {
+	 *      Array of image data, or boolean false if no image is available.
+	 *
+	 *      @type string $0 Image source URL.
+	 *      @type int    $1 Image width in pixels.
+	 *      @type int    $2 Image height in pixels.
+	 *      @type bool   $3 Whether the image is a resized image.
+	 * }
+	 */
+	public function get_attachment_image_src( $attachment_id, $size = 'thumbnail', $icon = false ) {
+		return wp_get_attachment_image_src( $attachment_id, $size, $icon );
+	}
+
+	/**
+	 * Retrieves the URL for an attachment.
+	 * Just call wp_get_attachment_image_src(), allow to mock it.
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 *
+	 * @return false|string
+	 */
+	public function get_attachment_url( $attachment_id ) {
+		return wp_get_attachment_url( $attachment_id );
 	}
 }

@@ -11,21 +11,11 @@ namespace Notion_Wp_Sync;
  * Notion_WP_Sync_Metabox_Sync_Settings
  */
 class Notion_WP_Sync_Metabox_Sync_Settings {
-	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
 
 	/**
 	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Available importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
-
+	public function __construct() {
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 	}
 
@@ -48,7 +38,7 @@ class Notion_WP_Sync_Metabox_Sync_Settings {
 	 * @param WP_Post $post The connection.
 	 */
 	public function display( $post ) {
-		$importer        = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $post->ID );
+		$importer        = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post->ID );
 		$webhook_url     = $importer ? get_rest_url( null, 'notionwpsync/v1/import/' . $importer->infos()->get( 'hash' ) ) : null;
 		$sync_strategies = $this->get_sync_strategies();
 		$schedules       = $this->get_schedules();
@@ -73,7 +63,14 @@ class Notion_WP_Sync_Metabox_Sync_Settings {
 	protected function get_schedules() {
 		$schedules = array();
 
-		foreach ( wp_get_schedules() as $key => $schedule ) {
+		$wp_schedules = array_filter(
+			wp_get_schedules(),
+			function ( $schedule ) {
+				return isset( $schedule['interval'] ) && $schedule['interval'] >= 1800;
+			}
+		);
+
+		foreach ( $wp_schedules as $key => $schedule ) {
 			$enabled                            = in_array( $key, array( 'weekly', 'daily' ), true );
 			$schedules[ $schedule['interval'] ] = array(
 				'value'   => $key,

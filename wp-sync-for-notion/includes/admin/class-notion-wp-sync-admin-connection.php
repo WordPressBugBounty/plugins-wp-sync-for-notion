@@ -7,16 +7,12 @@
 
 namespace Notion_Wp_Sync;
 
+use Notion_Wp_Sync\Notion_WP_Sync_Helpers;
+
 /**
  * Admin Connection
  */
 class Notion_WP_Sync_Admin_Connection {
-	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
 
 	/**
 	 * Whether we should display max connection notice
@@ -28,15 +24,12 @@ class Notion_WP_Sync_Admin_Connection {
 
 	/**
 	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
+	public function __construct() {
 
 		$this->add_meta_boxes();
 
-		add_action( 'edit_form_top', array( $this, 'add_header' ) );
+		add_action( 'edit_form_top', array( $this, 'add_header' ), 10, 0 );
 		add_action( 'dbx_post_sidebar', array( $this, 'add_footer' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'register_styles_scripts' ) );
 		add_filter( 'script_loader_tag', array( $this, 'add_alpine_defer_attribute' ), 10, 2 );
@@ -50,21 +43,11 @@ class Notion_WP_Sync_Admin_Connection {
 
 	/**
 	 * Output wrapper opening for alpinejs x-data
-	 *
-	 * @param WP_Post $post Post object.
 	 */
-	public function add_header( $post ) {
+	public function add_header() {
 		if ( 'nwpsync-connection' === get_post_type() ) {
-			$config = json_decode( $post->post_content );
-			if ( $config ) {
-				$config->synchronized = ! ! get_post_meta( $post->ID, 'last_updated', true );
-			}
-			$json = $config ? wp_json_encode( $config ) : '{}';
-			// Json output is already encoded.
-			// phpcs:ignore
-			echo '<script>window.notionwpsyncImporterData = ' . $json . ';</script>';
-			echo '<div id="notionwpsync-alpine-container" x-data="notionWpSyncSettingsHandler">';
-			echo '<div id="notionwpsync-validation-notice" class="notice notice-error" style="display:none"><p><strong>' . esc_html__( 'Error:', 'wp-sync-for-notion' ) . '</strong> ' . esc_html__( 'Some required fields are missing.', 'wp-sync-for-notion' ) . '</p></div>';
+			echo '<div id="notionwpsync-alpine-container" x-data="notionWpSyncSettingsHandler" @focusout="change" @input="change" @validate="submit">';
+			echo '<div id="notionwpsync-validation-notice" class="notice notice-error" style="display:none"><p><strong>' . esc_html__( 'Error:', 'wp-sync-for-notion' ) . '</strong> ' . esc_html__( 'One or more fields have an error. Please check and try again.', 'wp-sync-for-notion' ) . '</p></div>';
 		}
 	}
 
@@ -86,20 +69,14 @@ class Notion_WP_Sync_Admin_Connection {
 			wp_enqueue_script( 'notion-wp-sync-alpine', plugins_url( 'assets/js/alpinejs@3.10.2.min.js', NOTION_WP_SYNC_PLUGIN_FILE ), false, NOTION_WP_SYNC_VERSION, false );
 			wp_enqueue_script( 'notion-wp-sync-sortable', plugins_url( 'assets/js/Sortable.min.js', NOTION_WP_SYNC_PLUGIN_FILE ), false, NOTION_WP_SYNC_VERSION, false );
 			wp_enqueue_script( 'notion-wp-sync-select2', plugins_url( 'assets/js/select2/select2.full.min.js', NOTION_WP_SYNC_PLUGIN_FILE ), false, NOTION_WP_SYNC_VERSION, false );
-			wp_enqueue_script( 'notion-wp-sync-admin', plugins_url( 'assets/js/admin-page.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-alpine', 'notion-wp-sync-sortable', 'notion-wp-sync-select2', 'jquery-ui-tooltip', 'wp-i18n' ), NOTION_WP_SYNC_VERSION, false );
-			wp_add_inline_script( 'notion-wp-sync-admin', 'var notionWpSync = ' . $this->get_json_config(), 'before' );
-			wp_localize_script(
-				'notion-wp-sync-admin',
-				'notionWpSyncI18n',
-				array(
-					'deleteActionConfirmation' => __( 'You have a Custom Post Type declared using this connection. Are you sure to delete it?', 'wp-sync-for-notion' ),
-					'startingUpdate'           => __( 'In progress...', 'wp-sync-for-notion' ),
-					'canceling'                => __( 'Canceling...', 'wp-sync-for-notion' ),
-				)
-			);
-			wp_set_script_translations( 'notion-wp-sync-admin', 'wp-sync-for-notion' );
-			wp_enqueue_script( 'notion-wp-sync-admin-metabox-mapping', plugins_url( 'assets/js/metabox-mapping/main.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-admin', 'wp-i18n' ), NOTION_WP_SYNC_VERSION, false );
-			wp_set_script_translations( 'notion-wp-sync-admin-metabox-mapping', 'wp-sync-for-notion' );
+			wp_enqueue_style( 'wp-color-picker' );
+			wp_enqueue_script( 'notion-wp-sync-admin', plugins_url( 'assets/js/admin-page.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-alpine', 'notion-wp-sync-sortable', 'notion-wp-sync-select2', 'jquery-ui-tooltip', 'wp-i18n', 'wp-hooks', 'wp-color-picker' ), NOTION_WP_SYNC_VERSION, false );
+			wp_add_inline_script( 'notion-wp-sync-admin', 'var notionwpsyncImporterData = ' . $this->get_config(), 'before' );
+			wp_add_inline_script( 'notion-wp-sync-admin', 'var notionWpSync = ' . $this->get_modules_config(), 'before' );
+			wp_localize_script( 'notion-wp-sync-admin', 'notionWpSyncI18n', $this->get_l10n_strings() );
+			wp_set_script_translations( 'notion-wp-sync-admin', 'wp-sync-for-notion', NOTION_WP_SYNC_PLUGIN_DIR . 'languages' );
+			wp_enqueue_script( 'wp-sync-for-notion-admin-metabox-mapping', plugins_url( 'assets/js/metabox-mapping/main.js', NOTION_WP_SYNC_PLUGIN_FILE ), array( 'notion-wp-sync-admin' ), NOTION_WP_SYNC_VERSION, false );
+			wp_set_script_translations( 'wp-sync-for-notion-admin-metabox-mapping', 'wp-sync-for-notion', NOTION_WP_SYNC_PLUGIN_DIR . 'languages' );
 		}
 	}
 
@@ -123,10 +100,10 @@ class Notion_WP_Sync_Admin_Connection {
 	 */
 	public function add_meta_boxes() {
 		new Notion_WP_Sync_Metabox_Global_Settings();
-		new Notion_WP_Sync_Metabox_Post_Settings( $this->importers );
+		new Notion_WP_Sync_Metabox_Importer_Settings();
 		new Notion_WP_Sync_Metabox_Field_Mapping();
-		new Notion_WP_Sync_Metabox_Sync_Settings( $this->importers );
-		new Notion_WP_Sync_Metabox_Import_Infos( $this->importers );
+		new Notion_WP_Sync_Metabox_Sync_Settings();
+		new Notion_WP_Sync_Metabox_Import_Infos();
 	}
 
 	/**
@@ -238,6 +215,43 @@ class Notion_WP_Sync_Admin_Connection {
 		);
 
 		return $messages;
+	}
+
+	/**
+	 * Get connection config
+	 */
+	protected function get_config() {
+		global $post;
+		$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post->ID );
+		return $importer ? wp_json_encode( $importer->config() ) : '{}';
+	}
+
+
+	/**
+	 * Get modules config
+	 */
+	protected function get_modules_config() {
+		$config = array_map(
+			function ( $module ) {
+				return array(
+					'mappingOptions' => $module->get_mapping_options(),
+					'extraConfig'    => $module->get_extra_config(),
+				);
+			},
+			Notion_WP_Sync_Helpers::get_modules()
+		);
+		return wp_json_encode( $config );
+	}
+
+	/**
+	 * Get localization strings
+	 */
+	protected function get_l10n_strings() {
+		$l10n_strings = array(
+			'startingUpdate' => __( 'In progress...', 'wp-sync-for-notion' ),
+			'canceling'      => __( 'Canceling...', 'wp-sync-for-notion' ),
+		);
+		return apply_filters( 'notionwpsync/get_l10n_strings', $l10n_strings );
 	}
 
 	/**

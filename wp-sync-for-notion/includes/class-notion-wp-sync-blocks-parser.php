@@ -49,25 +49,17 @@ class Notion_WP_Sync_Blocks_Parser {
 		),
 	);
 
-
 	/**
-	 * Notion_WP_Sync_Blocks_Parser instance
+	 * Notion_WP_Sync_Blocks_Parser constructor.
+	 * Manages dependencies and init blocks hooks.
 	 *
-	 * @var Notion_WP_Sync_Blocks_Parser $instance
+	 * @param Notion_WP_Sync_Rich_Text_Parser    $rich_text_parser Rich text parser.
+	 * @param Notion_WP_Sync_Attachments_Manager $attachment_manager Attachment manager.
 	 */
-	private static $instance;
-
-	/**
-	 * Returns Notion_WP_Sync_Blocks_Parser instance
-	 *
-	 * @return Notion_WP_Sync_Blocks_Parser
-	 */
-	public static function get_instance() {
-		if ( empty( self::$instance ) ) {
-			self::$instance = new self();
-		}
-
-		return self::$instance;
+	public function __construct( $rich_text_parser, $attachment_manager ) {
+		$this->rich_text_parser   = $rich_text_parser;
+		$this->attachment_manager = $attachment_manager;
+		$this->init_blocks();
 	}
 
 	/**
@@ -85,38 +77,28 @@ class Notion_WP_Sync_Blocks_Parser {
 	private $attachment_manager;
 
 	/**
-	 * Notion_WP_Sync_Blocks_Parser constructor.
-	 * Manages dependencies and init blocks hooks.
-	 */
-	public function __construct() {
-		$this->rich_text_parser   = Notion_WP_Sync_Rich_Text_Parser::get_instance();
-		$this->attachment_manager = Notion_WP_Sync_Attachments_Manager::get_instance();
-		$this->init_blocks();
-	}
-
-	/**
 	 * Init blocks hooks.
 	 *
 	 * @return void
 	 */
 	public function init_blocks() {
-		add_filter( 'notionwpsync/blocks_parser/paragraph', array( $this, 'parse_paragraph_block' ), 10, 2 );
-		add_filter( 'notionwpsync/blocks_parser/heading_1', array( $this, 'parse_heading_block' ), 10, 2 );
-		add_filter( 'notionwpsync/blocks_parser/heading_2', array( $this, 'parse_heading_block' ), 10, 2 );
-		add_filter( 'notionwpsync/blocks_parser/heading_3', array( $this, 'parse_heading_block' ), 10, 2 );
+		add_filter( 'notionwpsync/blocks_parser/paragraph', array( $this, 'parse_paragraph_block' ), 10, 3 );
+		add_filter( 'notionwpsync/blocks_parser/heading_1', array( $this, 'parse_heading_block' ), 10, 3 );
+		add_filter( 'notionwpsync/blocks_parser/heading_2', array( $this, 'parse_heading_block' ), 10, 3 );
+		add_filter( 'notionwpsync/blocks_parser/heading_3', array( $this, 'parse_heading_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/bulleted_list_item', array( $this, 'parse_list_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/numbered_list_item', array( $this, 'parse_list_block' ), 10, 3 );
-		add_filter( 'notionwpsync/blocks_parser/quote', array( $this, 'parse_quote_block' ), 10, 2 );
-		add_filter( 'notionwpsync/blocks_parser/table', array( $this, 'parse_table_block' ), 10, 2 );
+		add_filter( 'notionwpsync/blocks_parser/quote', array( $this, 'parse_quote_block' ), 10, 3 );
+		add_filter( 'notionwpsync/blocks_parser/table', array( $this, 'parse_table_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/divider', array( $this, 'parse_divider_block' ), 10, 2 );
 		add_filter( 'notionwpsync/blocks_parser/image', array( $this, 'parse_image_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/video', array( $this, 'parse_video_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/column_list', array( $this, 'parse_column_list_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/callout', array( $this, 'parse_callout_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/synced_block', array( $this, 'parse_synced_block_block' ), 10, 3 );
-		add_filter( 'notionwpsync/blocks_parser/code', array( $this, 'parse_code_block' ), 10, 2 );
+		add_filter( 'notionwpsync/blocks_parser/code', array( $this, 'parse_code_block' ), 10, 3 );
 		add_filter( 'notionwpsync/blocks_parser/toggle', array( $this, 'parse_toggle_block' ), 10, 3 );
-		add_filter( 'notionwpsync/blocks_parser/embed', array( $this, 'parse_embed_block' ), 10, 2 );
+		add_filter( 'notionwpsync/blocks_parser/embed', array( $this, 'parse_embed_block' ), 10, 3 );
 	}
 
 	/**
@@ -133,7 +115,15 @@ class Notion_WP_Sync_Blocks_Parser {
 		$regrouped_item_type = null;
 		$regrouped_items     = array();
 		$sublist             = isset( $params['sublist'] ) && $params['sublist'];
-
+		if ( ! isset( $params['rich_text_options'] ) ) {
+			$params['rich_text_options'] = array();
+		}
+		if ( ! empty( $params['importer'] ) ) {
+			$params['rich_text_options'] = array_merge(
+				$this->rich_text_parser->get_rich_text_options_from_importer( $params['importer'] ),
+				$params['rich_text_options']
+			);
+		}
 		foreach ( $blocks as $block ) {
 			if ( in_array( $block->type, $to_regroup, true ) ) {
 				// Found all siblings items? parse blocks.
@@ -166,10 +156,11 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params Extra params.
 	 *
 	 * @return string
 	 */
-	public function parse_paragraph_block( $html, $block ) {
+	public function parse_paragraph_block( $html, $block, $params = array() ) {
 		if ( ! isset( $block->paragraph ) ) {
 			return $html;
 		}
@@ -179,7 +170,10 @@ class Notion_WP_Sync_Blocks_Parser {
 		$block_html  = '';
 
 		if ( isset( $paragraph->rich_text ) ) {
-			$block_html = $this->rich_text_parser->parse_rich_text( $paragraph->rich_text );
+			$block_html = $this->rich_text_parser->parse_rich_text(
+				$paragraph->rich_text,
+				$params['rich_text_options'] ?? array()
+			);
 		}
 
 		if ( '' === $block_html ) {
@@ -198,10 +192,11 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params Extra params.
 	 *
 	 * @return string
 	 */
-	public function parse_heading_block( $html, $block ) {
+	public function parse_heading_block( $html, $block, $params = array() ) {
 		if ( ! preg_match( '`^heading\_([1-6])$`', $block->type, $matches ) ) {
 			return $html;
 		}
@@ -219,7 +214,10 @@ class Notion_WP_Sync_Blocks_Parser {
 		}
 
 		if ( isset( $heading->rich_text ) ) {
-			$block_html = $this->rich_text_parser->parse_rich_text( $heading->rich_text );
+			$block_html = $this->rich_text_parser->parse_rich_text(
+				$heading->rich_text,
+				$params['rich_text_options'] ?? array()
+			);
 		}
 
 		if ( ! empty( $block_html ) ) {
@@ -288,7 +286,10 @@ class Notion_WP_Sync_Blocks_Parser {
 		$list_item  = $block->{$type};
 		$block_html = '';
 		if ( isset( $list_item->rich_text ) ) {
-			$block_html = $this->rich_text_parser->parse_rich_text( $list_item->rich_text );
+			$block_html = $this->rich_text_parser->parse_rich_text(
+				$list_item->rich_text,
+				$params['rich_text_options'] ?? array()
+			);
 		}
 		if ( $block->has_children ) {
 			$block_html = $this->parse_blocks( $block->children, array_merge( $params, array( 'sublist' => true ) ), $block_html );
@@ -307,10 +308,11 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params params.
 	 *
 	 * @return string
 	 */
-	public function parse_quote_block( $html, $block ) {
+	public function parse_quote_block( $html, $block, $params = array() ) {
 		if ( ! isset( $block->quote ) ) {
 			return $html;
 		}
@@ -326,7 +328,8 @@ class Notion_WP_Sync_Blocks_Parser {
 					'paragraph' => (object) array(
 						'rich_text' => $quote->rich_text,
 					),
-				)
+				),
+				$params
 			);
 		}
 
@@ -334,8 +337,9 @@ class Notion_WP_Sync_Blocks_Parser {
 			$block_attributes_props = $block_props;
 			array_unshift( $block_attributes_props['className'], 'wp-block-quote' );
 			$block_html = sprintf(
-				"<blockquote%s>$block_html</blockquote>",
-				$this->generate_attributes_from_props( $block_attributes_props )
+				'<blockquote%s>%s</blockquote>',
+				$this->generate_attributes_from_props( $block_attributes_props ),
+				$block_html
 			);
 			$block_html = $this->wrap_gut( $block_html, 'quote', $block_props );
 		}
@@ -348,10 +352,11 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params params.
 	 *
 	 * @return string
 	 */
-	public function parse_table_block( $html, $block ) {
+	public function parse_table_block( $html, $block, $params = array() ) {
 		if ( ! isset( $block->table ) || ! isset( $block->children ) || ! is_array( $block->children ) || empty( $block->children ) ) {
 			return $html;
 		}
@@ -366,7 +371,13 @@ class Notion_WP_Sync_Blocks_Parser {
 		if ( $has_column_header ) {
 			$block_html .= '<thead><tr>';
 			foreach ( $children[0]->table_row->cells as $cell ) {
-				$block_html .= '<th>' . $this->rich_text_parser->parse_rich_text( $cell ) . '</th>';
+				$block_html .= sprintf(
+					'<th>%s</th>',
+					$this->rich_text_parser->parse_rich_text(
+						$cell,
+						$params['rich_text_options'] ?? array()
+					)
+				);
 			}
 			$block_html .= '</tr></thead>';
 			array_shift( $children );
@@ -379,7 +390,13 @@ class Notion_WP_Sync_Blocks_Parser {
 				$block_html .= '<tr>';
 				foreach ( $child->table_row->cells as $cell ) {
 					$tagname      = ( $has_row_header && $is_first_col ? 'th' : 'td' );
-					$block_html  .= "<$tagname>" . $this->rich_text_parser->parse_rich_text( $cell ) . "</$tagname>";
+					$block_html  .= sprintf(
+						"<$tagname>%s</$tagname>",
+						$this->rich_text_parser->parse_rich_text(
+							$cell,
+							$params['rich_text_options'] ?? array()
+						)
+					);
 					$is_first_col = false;
 				}
 				$block_html .= '</tr>';
@@ -418,7 +435,6 @@ class Notion_WP_Sync_Blocks_Parser {
 	 * @param string $html HTML.
 	 * @param object $block Block.
 	 * @param array  $params Extra params.
-	 * @TODO: add test
 	 *
 	 * @return string
 	 */
@@ -435,17 +451,37 @@ class Notion_WP_Sync_Blocks_Parser {
 			)
 		);
 
-		$caption = ! empty( $block->image->caption ) ? $this->rich_text_parser->parse_rich_text( $block->image->caption ) : '';
+		$caption = '';
+		if ( ! empty( $block->image->caption ) ) {
+			$caption = $this->rich_text_parser->parse_rich_text(
+				$block->image->caption,
+				$params['rich_text_options'] ?? array()
+			);
+		}
 
 		if ( ! in_array( $block->image->type, array( 'external', 'file' ), true ) ) {
 			return $html;
+		}
+
+		// Find out file name from URL first, then caption if any and worst case fallback to the file type.
+		$filename = null;
+		if ( isset( $block->image->{$block->image->type}->url ) ) {
+			$url      = $block->image->{$block->image->type}->url;
+			$filename = Notion_WP_Sync_Helpers::get_filename_from_url( $url );
+			if ( 'giphy' === $filename && ! empty( $caption ) ) {
+				$filename = null;
+			}
+		}
+
+		if ( ! $filename ) {
+			$filename = ! empty( $caption ) ? $this->rich_text_parser->to_plain_text( $block->image->caption ) : $block->type;
 		}
 
 		$attachment_ids = $this->attachment_manager->get_set_files(
 			array(
 				$this->attachment_manager->notion_file_to_media(
 					$block->id,
-					! empty( $caption ) ? $this->rich_text_parser->to_plain_text( $block->image->caption ) : $block->type,
+					$filename,
 					$block->image
 				),
 			),
@@ -455,7 +491,7 @@ class Notion_WP_Sync_Blocks_Parser {
 
 		if ( ! empty( $attachment_ids ) ) {
 			$attachment_id                                  = $attachment_ids[0];
-			list( $image_url, $image_width, $image_height ) = wp_get_attachment_image_src( $attachment_id, 'large' );
+			list( $image_url, $image_width, $image_height ) = $this->attachment_manager->get_attachment_image_src( $attachment_id, 'large' );
 			$block_props['className'][]                     = 'size-large';
 			$block_html                                     = sprintf( '<figure class="wp-block-image size-large"><img src="%s" alt=""/>', $image_url );
 			if ( ! empty( $caption ) ) {
@@ -477,7 +513,6 @@ class Notion_WP_Sync_Blocks_Parser {
 	 * @param string $html HTML.
 	 * @param object $block Block.
 	 * @param array  $params Extra params.
-	 * @TODO: add test
 	 *
 	 * @return string
 	 */
@@ -488,7 +523,13 @@ class Notion_WP_Sync_Blocks_Parser {
 
 		$block_props = $this->init_gut_props( $block->video );
 		$block_html  = '';
-		$caption     = ! empty( $block->video->caption ) ? $this->rich_text_parser->parse_rich_text( $block->video->caption ) : '';
+		$caption     = '';
+		if ( ! empty( $block->video->caption ) ) {
+			$caption = $this->rich_text_parser->parse_rich_text(
+				$block->video->caption,
+				$params['rich_text_options'] ?? array()
+			);
+		}
 
 		if ( 'external' === $block->video->type ) {
 			$url   = $block->video->external->url;
@@ -512,7 +553,7 @@ class Notion_WP_Sync_Blocks_Parser {
 				$block_props['id'] = $attachment_id;
 				$block_html        = sprintf(
 					'<figure class="wp-block-video"><video controls src="%s"></video>%s</figure>',
-					wp_get_attachment_url( $attachment_id ),
+					$this->attachment_manager->get_attachment_url( $attachment_id ),
 					! empty( $caption ) ? sprintf( '<figcaption class="wp-element-caption">%s</figcaption>', $caption ) : ''
 				);
 			}
@@ -593,7 +634,7 @@ class Notion_WP_Sync_Blocks_Parser {
 						$params['post_id'] ?? null
 					);
 					if ( ! empty( $attachments_id ) ) {
-						list( $image_url, $image_width, $image_height ) = wp_get_attachment_image_src( $attachments_id[0], 'thumbnail' );
+						list( $image_url, $image_width, $image_height ) = $this->attachment_manager->get_attachment_image_src( $attachments_id[0], 'thumbnail' );
 						$url = $image_url;
 					}
 				}
@@ -603,7 +644,10 @@ class Notion_WP_Sync_Blocks_Parser {
 			}
 		}
 
-		$rich_text .= $this->rich_text_parser->parse_rich_text( $block->callout->rich_text );
+		$rich_text .= $this->rich_text_parser->parse_rich_text(
+			$block->callout->rich_text,
+			$params['rich_text_options'] ?? array()
+		);
 
 		return $this->parse_paragraph_block(
 			$html,
@@ -613,7 +657,8 @@ class Notion_WP_Sync_Blocks_Parser {
 					'rich_text' => $rich_text,
 					'color'     => $block->callout->color ?? null,
 				),
-			)
+			),
+			$params
 		);
 	}
 
@@ -622,15 +667,22 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params Params.
 	 *
 	 * @return string
 	 */
-	public function parse_code_block( $html, $block ) {
+	public function parse_code_block( $html, $block, $params = array() ) {
 		if ( ! isset( $block->code ) ) {
 			return $html;
 		}
 
-		$block_html = $this->rich_text_parser->parse_rich_text( $block->code->rich_text, array( 'nl2br' => false ) );
+		$block_html = $this->rich_text_parser->parse_rich_text(
+			$block->code->rich_text,
+			array_merge(
+				$params['rich_text_options'] ?? array(),
+				array( 'nl2br' => false )
+			)
+		);
 
 		if ( ! empty( $block_html ) ) {
 			$block_html = "<pre class=\"wp-block-code\"><code>$block_html</code></pre>";
@@ -645,7 +697,8 @@ class Notion_WP_Sync_Blocks_Parser {
 					'paragraph' => (object) array(
 						'rich_text' => $block->code->caption,
 					),
-				)
+				),
+				$params
 			);
 		}
 
@@ -671,7 +724,13 @@ class Notion_WP_Sync_Blocks_Parser {
 
 		$block_html = '';
 		if ( isset( $block->toggle->rich_text ) ) {
-			$block_html = '<summary>' . $this->rich_text_parser->parse_rich_text( $block->toggle->rich_text ) . '</summary>';
+			$block_html = sprintf(
+				'<summary>%s</summary>',
+				$this->rich_text_parser->parse_rich_text(
+					$block->toggle->rich_text,
+					$params['rich_text_options'] ?? array()
+				)
+			);
 		}
 
 		$children = $block->has_children ? $block->children : array();
@@ -705,7 +764,6 @@ class Notion_WP_Sync_Blocks_Parser {
 		return $html . $block_html;
 	}
 
-
 	/**
 	 * Parse synced block.
 	 *
@@ -728,16 +786,23 @@ class Notion_WP_Sync_Blocks_Parser {
 	 *
 	 * @param string $html HTML.
 	 * @param object $block Block.
+	 * @param array  $params Extra params.
 	 *
 	 * @return string
 	 */
-	public function parse_embed_block( $html, $block ) {
+	public function parse_embed_block( $html, $block, $params = array() ) {
 		if ( ! isset( $block->embed ) ) {
 			return $html;
 		}
 
 		$block_props = $this->init_gut_props( $block->embed );
-		$caption     = ! empty( $block->embed->caption ) ? $this->rich_text_parser->parse_rich_text( $block->embed->caption ) : '';
+		$caption     = '';
+		if ( ! empty( $block->embed->caption ) ) {
+			$caption = $this->rich_text_parser->parse_rich_text(
+				$block->embed->caption,
+				$params['rich_text_options'] ?? array()
+			);
+		}
 
 		$block_html = $this->embed( $block->embed->url, $block_props, $caption );
 
@@ -847,6 +912,7 @@ class Notion_WP_Sync_Blocks_Parser {
 	 * @param string $block_name Gutenberg block name.
 	 * @param array  $props Gutenberg block props.
 	 * @param int    $json_flags Same param as https://www.php.net/manual/en/function.json-encode.php.
+	 *
 	 * @return string
 	 */
 	public function wrap_gut( $content, $block_name, $props = array(), $json_flags = 0 ) {

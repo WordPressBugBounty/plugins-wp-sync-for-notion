@@ -22,141 +22,15 @@ class Notion_WP_Sync_Helpers {
 		return wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), is_int( $datetime ) ? $datetime : strtotime( $datetime ) );
 	}
 
-	/**
-	 * Get available post types
-	 *
-	 * @return array
-	 */
-	public static function get_post_types() {
-		$excluded   = array(
-			// WP.
-			'attachment',
-			// WPC.
-			'nwpsync-connection',
-			'nwpsync-content',
-			'airwpsync-connection',
-			// Others known incompatible post types.
-			'acf-field-group',
-			'acf-field',
-			'wpforms',
-			'e-landing-page',
-			'elementor_library',
-			'elementor_snippet',
-			'elementor_font',
-			'elementor_icons',
-			'elementor-hf',
-			'wpcf7_contact_form',
-			'et_tb_item',
-			'et_code_snippet',
-			'et_theme_builder',
-			'et_template',
-			'et_header_layout',
-			'et_body_layout',
-			'et_pb_layout',
-			'et_footer_layout',
-			'fl-builder-template',
-			'fl-theme-layout',
-			'mc4wp-form',
-			'polylang_mo',
-			'edd_payment',
-			'edd_discount',
-			'edd_license',
-			'edd_license_log',
-			'edd_receipt',
-			'edd_subscription_log',
-			'product_variation',
-			'shop_order',
-			'shop_order_refund',
-			'shop_coupon',
-			'shop_order_placehold',
-			'nf_sub',
-		);
-		$post_types = array();
-
-		$wp_post_types = get_post_types( null, 'objects' );
-
-		foreach ( $wp_post_types as $wp_post_type ) {
-			// Skip excluded post types.
-			if ( in_array( $wp_post_type->name, $excluded, true ) ) {
-				continue;
-			}
-			// Skip WP private post types.
-			if ( $wp_post_type->_builtin && ! $wp_post_type->public ) {
-				continue;
-			}
-
-			$builtin = $wp_post_type->_builtin;
-
-			$post_types[] = array(
-				'value'   => $wp_post_type->name,
-				/* translators: %s feature name available in pro version */
-				'label'   => $builtin ? $wp_post_type->labels->singular_name : sprintf( __( '%s (Pro version)', 'wp-sync-for-notion' ), $wp_post_type->labels->singular_name ),
-				'enabled' => $builtin,
-				'builtin' => $builtin,
-			);
-		}
-
-		$post_types[] = array(
-			'value'   => 'nwpsync-content',
-			'label'   => __( 'Notion content (shortcode)', 'wp-sync-for-notion' ),
-			'enabled' => false,
-			'builtin' => false,
-		);
-		$post_types[] = array(
-			'value'   => 'custom',
-			'label'   => __( 'Create new post type... (Pro version)', 'wp-sync-for-notion' ),
-			'enabled' => false,
-			'builtin' => false,
-			'group'   => 'wordpress',
-		);
-
-		return apply_filters( 'notionwpsync/get_post_types', $post_types );
-	}
-
-	/**
-	 * Get post stati
-	 */
-	public static function get_post_stati() {
-		$post_stati    = array();
-		$wp_post_stati = get_post_stati(
-			array( 'internal' => false ),
-			'objects'
-		);
-
-		foreach ( $wp_post_stati as $wp_post_status ) {
-			$post_stati[] = array(
-				'value'   => $wp_post_status->name,
-				'label'   => $wp_post_status->label,
-				'enabled' => true,
-			);
-		}
-		return apply_filters( 'notionwpsync/get_post_stati', $post_stati );
-	}
-
-	/**
-	 * Get post authors
-	 */
-	public static function get_post_authors() {
-		$authors    = array();
-		$wp_authors = get_users( array( 'role__in' => array( 'administrator', 'editor', 'author', 'contributor' ) ) );
-		foreach ( $wp_authors as $wp_author ) {
-			$authors[] = array(
-				'value'   => $wp_author->ID,
-				'label'   => $wp_author->display_name,
-				'enabled' => true,
-			);
-		}
-		return apply_filters( 'notionwpsync/get_post_authors', $authors );
-	}
 
 	/**
 	 * Get importer instance from id.
 	 * Return false if the imported is not found.
 	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Importers.
-	 * @param int                       $id The importet id.
+	 * @param Notion_WP_Sync_Abstract_Importer[] $importers Importers.
+	 * @param int                                $id The importet id.
 	 *
-	 * @return bool|Notion_WP_Sync_Importer
+	 * @return bool|Notion_WP_Sync_Abstract_Importer
 	 */
 	public static function get_importer_by_id( $importers, $id ) {
 		return array_reduce(
@@ -169,6 +43,39 @@ class Notion_WP_Sync_Helpers {
 	}
 
 	/**
+	 * Get modules
+	 */
+	public static function get_modules() {
+		return apply_filters( 'notionwpsync/get_modules', array() );
+	}
+
+	/**
+	 * Get module by slug
+	 *
+	 * @param string $slug The module's slug.
+	 */
+	public static function get_module_by_slug( $slug ) {
+		return self::get_modules()[ $slug ] ?? null;
+	}
+
+	/**
+	 * Get importers
+	 */
+	public static function get_importers() {
+		return apply_filters( 'notionwpsync/get_importers', array() );
+	}
+
+	/**
+	 * Get module from importer post object
+	 *
+	 * @param \WP_Post $importer_post_object The connection.
+	 */
+	public static function get_importer_module( $importer_post_object ) {
+		$config = json_decode( $importer_post_object->post_content, true );
+		return $config['module'] ?? 'post';
+	}
+
+	/**
 	 * Generate hash for given Notion record and config.
 	 *
 	 * @param Notion_WP_Sync_Abstract_Model $record The Notion object.
@@ -177,9 +84,31 @@ class Notion_WP_Sync_Helpers {
 	 * @return string
 	 */
 	public static function generate_hash( $record, $config ) {
-		// Remove cs & ts query strings from urls in Notion record.
 		$record_json = wp_json_encode( $record );
 		return md5( $record_json . wp_json_encode( $config ) );
+	}
+
+	/**
+	 * Try to extract filename from url (without extension).
+	 *
+	 * @param string $url The URL to parse.
+	 *
+	 * @return string|null
+	 */
+	public static function get_filename_from_url( $url ) {
+		if ( ! is_string( $url ) ) {
+			return null;
+		}
+		$url_info = explode( '?', $url );
+		$filename = $url_info[0];
+		$url_info = explode( '/', $filename );
+		$filename = array_pop( $url_info );
+		if ( ! $filename ) {
+			return null;
+		}
+		$filename = pathinfo( $filename, PATHINFO_FILENAME );
+		$filename = str_replace( '.', '-', $filename );
+		return $filename;
 	}
 
 	/**
@@ -220,14 +149,127 @@ class Notion_WP_Sync_Helpers {
 		if ( is_string( $data ) ) {
 			return wp_encode_emoji( $data );
 		} elseif ( is_array( $data ) ) {
+			$keys_to_delete = array();
 			foreach ( $data as $key => $value ) {
-				$data[ $key ] = self::deep_convert_emoji( $value, $max_depth );
+				$data[ wp_encode_emoji( $key ) ] = self::deep_convert_emoji( $value, $max_depth );
+				if ( wp_encode_emoji( $key ) !== $key ) {
+					$keys_to_delete[] = $key;
+				}
+			}
+			foreach ( $keys_to_delete as $key_to_delete ) {
+				unset( $data[ $key_to_delete ] );
 			}
 		} elseif ( is_object( $data ) ) {
+			$keys_to_delete = array();
 			foreach ( $data as $key => $value ) {
-				$data->{$key} = self::deep_convert_emoji( $value, $max_depth );
+				$data->{wp_encode_emoji( $key )} = self::deep_convert_emoji( $value, $max_depth );
+				if ( wp_encode_emoji( $key ) !== $key ) {
+					$keys_to_delete[] = $key;
+				}
+			}
+			foreach ( $keys_to_delete as $key_to_delete ) {
+				unset( $data->{$key_to_delete} );
 			}
 		}
 		return $data;
+	}
+
+	/**
+	 * Return first match between Notion field's supported values and destination ones.
+	 *
+	 * @param array $notion_field_supported_value_types Notion field's value types.
+	 * @param array $destination_supported_value_types Destination supported value types.
+	 *
+	 * @return false|mixed
+	 */
+	public static function get_first_supported_source_value_type( $notion_field_supported_value_types, $destination_supported_value_types ) {
+		$value_type_selected = false;
+		foreach ( $destination_supported_value_types as $value_type ) {
+			if ( in_array( $value_type, $notion_field_supported_value_types, true ) ) {
+				$value_type_selected = $value_type;
+				break;
+			}
+		}
+		return $value_type_selected;
+	}
+
+	/**
+	 * Sanitize field type key (allowed characters a-z_|).
+	 *
+	 * @param string $key The field type key to sanitize.
+	 *
+	 * @return array|string|string[]|null
+	 */
+	public static function sanitize_field_type( $key ) {
+		$sanitized_key = '';
+
+		if ( is_scalar( $key ) ) {
+			$sanitized_key = strtolower( $key );
+			$sanitized_key = preg_replace( '/[^a-z_|]/', '', $sanitized_key );
+		}
+
+		return $sanitized_key;
+	}
+
+	/**
+	 * Returns supported value types for a field object or a field class.
+	 *
+	 * @param object|string $object_or_class An object (class instance) or a string (class or interface name).
+	 *
+	 * @return string[]
+	 */
+	public static function get_field_class_supported_value_types( $object_or_class ) {
+		$supported_value_types = class_implements( $object_or_class );
+		return apply_filters( 'notionwpsync/field-class-supported-value-types', $supported_value_types, $object_or_class );
+	}
+
+	/**
+	 * If the value is not an array, convert to array.
+	 * If the value is a multidimensional array flatten it.
+	 *
+	 * @param mixed $value The value to flatten / transform to array.
+	 *
+	 * @return array
+	 */
+	public static function flatten_value( $value ) {
+		if ( null === $value || '' === $value ) {
+			$value = array();
+		}
+		if ( ! is_array( $value ) ) {
+			$value = array( $value );
+		} else {
+			$value = array_reduce(
+				$value,
+				function ( $carry, $value_item ) {
+					if ( is_array( $value_item ) ) {
+						$carry = array_merge( $carry, self::flatten_value( $value_item ) );
+					} else {
+						$carry[] = $value_item;
+					}
+					return $carry;
+				},
+				array()
+			);
+		}
+		return $value;
+	}
+
+	/**
+	 * Check user access.
+	 *
+	 * @param string $error_key Error key for the response.
+	 *
+	 * @return void
+	 */
+	public static function check_ajax_admin_user_access( $error_key = 'feedback' ) {
+		if ( ! current_user_can( apply_filters( 'notionwpsync/manage_options_capability', 'manage_options' ) ) ) {
+			wp_send_json_error(
+				array(
+					'status'   => 'error',
+					$error_key => array( __( 'Unauthorized', 'wp-sync-for-notion' ) ),
+				),
+				403
+			);
+		}
 	}
 }

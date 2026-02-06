@@ -3,9 +3,9 @@
  * Plugin Name: Notion to WordPress - WP Sync for Notion
  * Plugin URI: https://wpconnect.co/notion-wordpress-integration/
  * Description: Swiftly sync Notion to your WordPress website!
- * Version: 1.6.0
+ * Version: 1.7.1
  * Requires at least: 5.7
- * Tested up to: 6.7
+ * Tested up to: 6.9
  * Requires PHP: 7.0
  * Author: WP connect
  * Author URI: https://wpconnect.co/
@@ -22,7 +22,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'NOTION_WP_SYNC_VERSION', '1.6.0' );
+define( 'NOTION_WP_SYNC_VERSION', '1.7.1' );
 define( 'NOTION_WP_SYNC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NOTION_WP_SYNC_PLUGIN_FILE', __FILE__ );
 define( 'NOTION_WP_SYNC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -30,30 +30,38 @@ define( 'NOTION_WP_SYNC_BASENAME', plugin_basename( __FILE__ ) );
 define( 'NOTION_WP_SYNC_LOGDIR', wp_upload_dir( null, false )['basedir'] . '/notionwpsync-logs/' );
 
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
+
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-services.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-abstract-settings.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-abstract-module.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-abstract-importer.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/destinations/class-notion-wp-sync-abstract-destination.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-api-abstract-route.php';
+
+
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-blocks-parser.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-rich-text-parser.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-attachments-manager.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-abstract-settings.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-options.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-action-consumer.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-importer.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-importer-settings.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-helpers.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/admin/class-notion-wp-sync-admin.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-notion-api-client.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-cli.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-api-abstract-route.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-api-import-route.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-notion-content.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/class-notion-wp-sync-notion-page.php';
 
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'modules/post/class-notion-wp-sync-post-module.php';
+
+
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/formatters/class-notion-wp-sync-terms-formatter.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/destinations/class-notion-wp-sync-abstract-destination.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/destinations/class-notion-wp-sync-post-destination.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/destinations/class-notion-wp-sync-meta-destination.php';
-require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/destinations/class-notion-wp-sync-taxonomy-destination.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/formatters/class-notion-wp-sync-image-formatter.php';
 
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-models/class-notion-wp-sync-abstract-model.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-models/class-notion-wp-sync-database-model.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-models/class-notion-wp-sync-page-model.php';
 
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/interface-notion-wp-sync-field.php';
@@ -70,6 +78,7 @@ require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/trait-notion-wp
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-field-factory.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-generic-text-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-generic-multi-text-field.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-generic-number-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-title-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-blocks-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-files-field.php';
@@ -84,6 +93,7 @@ require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-email-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-phone-number-field.php';
 require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-people-field.php';
+require_once NOTION_WP_SYNC_PLUGIN_DIR . 'includes/notion-fields/class-notion-wp-sync-formula-field.php';
 
 register_activation_hook( __FILE__, __NAMESPACE__ . '\notion_wp_sync_activate' );
 register_deactivation_hook( __FILE__, __NAMESPACE__ . '\notion_wp_sync_deactivate' );

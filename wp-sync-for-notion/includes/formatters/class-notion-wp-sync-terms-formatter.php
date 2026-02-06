@@ -14,24 +14,34 @@ class Notion_WP_Sync_Terms_Formatter {
 	/**
 	 * Importer.
 	 *
-	 * @var Notion_WP_Sync_Importer
+	 * @var Notion_WP_Sync_Abstract_Importer
 	 */
 	protected $importer;
 
 	/**
 	 * Format source value
 	 *
-	 * @param array|string|null       $value The list of string.
-	 * @param Notion_WP_Sync_Importer $importer The importer.
-	 * @param string                  $taxonomy The taxonomy.
+	 * @param string[]|string|null             $value The list of string.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer The importer.
+	 * @param string                           $taxonomy The taxonomy.
+	 * @param boolean                          $split_comma_separated_string_into_terms Should string comma separated value be split into multiple terms.
 	 *
 	 * @return array
 	 */
-	public function format( $value, $importer, $taxonomy ) {
+	public function format( $value, $importer, $taxonomy, $split_comma_separated_string_into_terms = false ) {
 		$this->importer = $importer;
 
 		if ( is_null( $value ) ) {
 			return array();
+		}
+
+		if ( $split_comma_separated_string_into_terms ) {
+			if ( ! is_array( $value ) ) {
+				$value = array( $value );
+			}
+			// If the incoming value is a comma-seperated list of values, split the string.
+			$value = array_map( array( $this, 'split_comma_separated_string_into_terms' ), $value );
+			$value = Notion_WP_Sync_Helpers::flatten_value( $value );
 		}
 
 		// Make sure we have an array of terms.
@@ -52,6 +62,23 @@ class Notion_WP_Sync_Terms_Formatter {
 			}
 		}
 		return $terms;
+	}
+
+	/**
+	 * Split comma separated string into terms.
+	 *
+	 * @param string|mixed $value The value to split.
+	 *
+	 * @return array
+	 */
+	protected function split_comma_separated_string_into_terms( $value ) {
+		if ( is_array( $value ) ) {
+			return $value;
+		}
+		if ( ! is_string( $value ) ) {
+			return array( $value );
+		}
+		return array_map( 'trim', explode( ',', $value ) );
 	}
 
 	/**

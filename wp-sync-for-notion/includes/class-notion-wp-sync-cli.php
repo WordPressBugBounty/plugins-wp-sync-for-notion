@@ -13,21 +13,6 @@ use WP_CLI;
  * Notion_WP_Sync_CLI class.
  */
 class Notion_WP_Sync_CLI {
-	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
-
-	/**
-	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Importers.
-	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
-	}
 
 	/**
 	 * List importers
@@ -43,7 +28,7 @@ class Notion_WP_Sync_CLI {
 					'title' => $importer->infos()->get( 'title' ),
 				);
 			},
-			$this->importers
+			Notion_WP_Sync_Helpers::get_importers()
 		);
 
 		$formatter = new WP_CLI\Formatter(
@@ -96,7 +81,7 @@ class Notion_WP_Sync_CLI {
 	 */
 	protected function get_importer_by_slug( $slug ) {
 		return array_reduce(
-			$this->importers,
+			Notion_WP_Sync_Helpers::get_importers(),
 			function ( $result, $importer ) use ( $slug ) {
 				return $importer->infos()->get( 'slug' ) === $slug ? $importer : $result;
 			},

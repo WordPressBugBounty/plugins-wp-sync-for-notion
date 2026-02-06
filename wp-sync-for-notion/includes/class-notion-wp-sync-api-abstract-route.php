@@ -36,20 +36,9 @@ abstract class Notion_WP_Sync_Api_Abstract_Route {
 	protected $methods = WP_REST_Server::READABLE;
 
 	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
-
-	/**
 	 * Set hooks.
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
-
+	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'register_route' ) );
 
 		$this->set_hooks();

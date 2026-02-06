@@ -15,7 +15,7 @@ abstract class Notion_WP_Sync_Abstract_Model {
 	/**
 	 * Data retrieve from the API.
 	 *
-	 * @var array
+	 * @var object
 	 */
 	protected $data;
 

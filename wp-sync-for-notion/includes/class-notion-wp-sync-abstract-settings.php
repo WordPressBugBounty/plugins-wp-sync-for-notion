@@ -10,7 +10,7 @@ namespace Notion_Wp_Sync;
 /**
  * Notion_WP_Sync_Abstract_Settings class.
  */
-abstract class Notion_WP_Sync_Abstract_Settings {
+abstract class Notion_WP_Sync_Abstract_Settings implements \JsonSerializable {
 	/**
 	 * Settings.
 	 *
@@ -69,6 +69,16 @@ abstract class Notion_WP_Sync_Abstract_Settings {
 	 * Get all settings as array
 	 */
 	public function to_array() {
+		return $this->settings;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @return array|mixed
+	 */
+	#[\ReturnTypeWillChange]
+	public function jsonSerialize() {
 		return $this->settings;
 	}
 }

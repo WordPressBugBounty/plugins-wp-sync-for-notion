@@ -76,8 +76,8 @@ class Notion_WP_Sync_Date_Field extends Notion_WP_Sync_Abstract_Field implements
 							/* translators: %s the date field name */
 							'name' => sprintf( __( '%s (start)', 'wp-sync-for-notion' ), $properties_object->get_name() ),
 							'date' => (object) array(
-								'date_string' => $date_raw->start,
-								'time_zone'   => $date_raw->time_zone,
+								'date_string' => $date_raw->start ?? '',
+								'time_zone'   => $date_raw->time_zone ?? '',
 							),
 						)
 					);
@@ -88,8 +88,8 @@ class Notion_WP_Sync_Date_Field extends Notion_WP_Sync_Abstract_Field implements
 							/* translators: %s the date field name */
 							'name' => sprintf( __( '%s (end)', 'wp-sync-for-notion' ), $properties_object->get_name() ),
 							'date' => (object) array(
-								'date_string' => $date_raw->end,
-								'time_zone'   => $date_raw->time_zone,
+								'date_string' => $date_raw->end ?? '',
+								'time_zone'   => $date_raw->time_zone ?? '',
 							),
 						)
 					);
@@ -158,13 +158,17 @@ class Notion_WP_Sync_Date_Field extends Notion_WP_Sync_Abstract_Field implements
 			return null;
 		}
 
+		$timezone    = null;
+		$wp_timezone = new \DateTimeZone( wp_timezone_string() );
 		// Only date?
 		if ( strlen( $date_string ) === 10 ) {
 			$date_string .= 'T00:00:00';
+			$timezone     = $wp_timezone;
 		}
 
-		$date = new \DateTimeImmutable( $date_string );
+		$date = new \DateTimeImmutable( $date_string, $timezone );
 		if ( $date instanceof \DateTimeInterface ) {
+			$date = $date->setTimezone( $wp_timezone );
 			return $date;
 		}
 		return null;

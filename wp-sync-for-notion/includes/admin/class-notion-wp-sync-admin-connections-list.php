@@ -11,21 +11,11 @@ namespace Notion_Wp_Sync;
  * Notion_WP_Sync_Admin_Connections_List class.
  */
 class Notion_WP_Sync_Admin_Connections_List {
-	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
 
 	/**
 	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
-
+	public function __construct() {
 		add_filter( 'manage_nwpsync-connection_posts_columns', array( $this, 'admin_table_columns' ), 10, 1 );
 		add_action( 'manage_nwpsync-connection_posts_custom_column', array( $this, 'admin_table_columns_html' ), 10, 2 );
 		add_filter( 'post_row_actions', array( $this, 'connection_row_actions' ), 10, 2 );
@@ -41,7 +31,7 @@ class Notion_WP_Sync_Admin_Connections_List {
 			'cb'            => $post_columns['cb'],
 			'title'         => $post_columns['title'],
 			'modified-date' => __( 'Last Modified On', 'wp-sync-for-notion' ),
-			'post-type'     => __( 'Post Type', 'wp-sync-for-notion' ),
+			'type'          => __( 'Importer Type', 'wp-sync-for-notion' ),
 			'sync-date'     => __( 'Last Synced On', 'wp-sync-for-notion' ),
 			'sync-trigger'  => __( 'Trigger', 'wp-sync-for-notion' ),
 		);
@@ -56,19 +46,15 @@ class Notion_WP_Sync_Admin_Connections_List {
 	 * @return void
 	 */
 	public function admin_table_columns_html( $column_name, $post_id ) {
-		$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $post_id );
+		$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post_id );
 		if ( ! $importer ) {
 			return;
 		}
 		switch ( $column_name ) {
-			case 'post-type':
-				$post_type        = $importer->get_post_type();
-				$post_type_object = get_post_type_object( $post_type );
-				if ( $post_type_object ) {
-					$menu_icon = $post_type_object->menu_icon ? $post_type_object->menu_icon : 'dashicons-admin-post';
-					echo '<span class="dashicons ' . esc_attr( $menu_icon ) . '"></span> ';
-					echo esc_html( $post_type_object->labels->name );
-				}
+			case 'type':
+				/* translators: %s Module's name */
+				echo esc_html( sprintf( __( '%s Importer', 'wp-sync-for-notion' ), $importer->get_module()->get_name() ) );
+				do_action( 'notionwpsync/connections_list_type_column', $importer );
 				break;
 			case 'sync-trigger':
 				if ( 'manual' === $importer->config()->get( 'scheduled_sync.type' ) ) {
@@ -112,7 +98,7 @@ class Notion_WP_Sync_Admin_Connections_List {
 			unset( $actions['inline hide-if-no-js'] );
 
 			if ( isset( $actions['trash'] ) ) {
-				$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $post->ID );
+				$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post->ID );
 				if ( $importer && $importer->config()->get( 'post_type' ) === 'custom' ) {
 					$title            = _draft_or_post_title();
 					$actions['trash'] = sprintf(

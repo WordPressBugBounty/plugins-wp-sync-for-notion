@@ -69,7 +69,7 @@ class Notion_WP_Sync_Api_Import_Route extends Notion_WP_Sync_Api_Abstract_Route 
 	 */
 	protected function get_importer_by_hash( $hash ) {
 		return array_reduce(
-			$this->importers,
+			Notion_WP_Sync_Helpers::get_importers(),
 			function ( $result, $importer ) use ( $hash ) {
 				return $importer->infos()->get( 'hash' ) === $hash ? $importer : $result;
 			},

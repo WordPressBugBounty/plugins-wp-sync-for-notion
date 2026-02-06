@@ -30,7 +30,7 @@ class Notion_WP_Sync_Field_Factory {
 				}
 			);
 			add_filter(
-				'notionwpsync/field-object/' . sanitize_key( $field_type ),
+				'notionwpsync/field-object/' . Notion_WP_Sync_Helpers::sanitize_field_type( $field_type ),
 				function ( $object_class ) use ( $class ) {
 					$object_class = $class;
 					return $object_class;
@@ -50,7 +50,7 @@ class Notion_WP_Sync_Field_Factory {
 	 * @return false|Notion_WP_Sync_Field_Interface
 	 */
 	public static function build( $field_type, $prop_data ) {
-		$object_class = apply_filters( 'notionwpsync/field-object/' . sanitize_key( $field_type ), false );
+		$object_class = apply_filters( 'notionwpsync/field-object/' . Notion_WP_Sync_Helpers::sanitize_field_type( $field_type ), false );
 
 		if ( false === $object_class || ! class_exists( $object_class ) ) {
 			return false;
@@ -71,19 +71,20 @@ class Notion_WP_Sync_Field_Factory {
 		$field_types = array();
 		if ( ! empty( $support ) ) {
 			$field_types = apply_filters( 'notionwpsync/field-objects', array() );
+
 			$field_types = array_filter(
 				$field_types,
 				function ( $field_type ) use ( $support ) {
-					$field_class = apply_filters( 'notionwpsync/field-object/' . sanitize_key( $field_type ), null );
+					$field_class = apply_filters( 'notionwpsync/field-object/' . Notion_WP_Sync_Helpers::sanitize_field_type( $field_type ), null );
 					if ( ! $field_class ) {
 						return false;
 					}
-					$implements = class_implements( $field_class );
+					$implements = Notion_WP_Sync_Helpers::get_field_class_supported_value_types( $field_class );
 					$intersect  = array_intersect( $support, array_keys( $implements ) );
 					return count( $intersect ) > 0;
 				}
 			);
 		}
-		return array_values( $field_types );
+		return apply_filters( 'notionwpsync/field-types', array_values( $field_types ), $support );
 	}
 }

@@ -19,43 +19,52 @@ abstract class Notion_WP_Sync_Abstract_Destination {
 	protected $slug;
 
 	/**
+	 * Module slug.
+	 *
+	 * @var string
+	 */
+	protected $module;
+
+	/**
 	 * Constructor
 	 */
 	public function __construct() {
-		add_filter( 'notionwpsync/get_wp_fields', array( $this, 'add_fields' ) );
-		add_filter( 'notionwpsync/features_by_post_type', array( $this, 'add_features_by_post_type' ), 10, 2 );
+		add_filter( 'notionwpsync/get_wp_fields', array( $this, 'add_fields' ), 10, 2 );
 	}
 
 	/**
 	 * Add fields to mapping options
 	 *
-	 * @param array $fields Fields.
+	 * @param array  $fields Fields.
+	 * @param string $module_slug Selected module's slug.
 	 *
 	 * @return array
 	 */
-	public function add_fields( $fields ) {
-		$group      = $this->get_group();
-		$new_fields = $this->get_mapping_fields();
+	public function add_fields( $fields, $module_slug ) {
+		if ( $module_slug === $this->module ) {
+			$group      = $this->get_group();
+			$new_fields = $this->get_mapping_fields();
 
-		$options        = array();
-		$default_option = array(
-			'enabled'        => true,
-			'allow_multiple' => false,
-		);
-		foreach ( $new_fields as $field ) {
-			$options[] = array_merge( $default_option, $field, array( 'value' => $this->slug . '::' . $field['value'] ) );
-		}
+			$options        = array();
+			$default_option = array(
+				'enabled'        => true,
+				'allow_multiple' => false,
+			);
+			foreach ( $new_fields as $field ) {
+				$options[] = array_merge( $default_option, $field, array( 'value' => $this->slug . '::' . $field['value'] ) );
+			}
 
-		$fields = array_merge_recursive(
-			$fields,
-			array(
-				$group['slug'] => array(
-					'options' => $options,
-				),
-			)
-		);
-		if ( ! empty( $group['label'] ) ) {
-			$fields[ $group['slug'] ]['label'] = $group['label'];
+			$fields = array_merge_recursive(
+				$fields,
+				array(
+					$group['slug'] => array(
+						'options' => $options,
+					),
+				)
+			);
+			if ( ! empty( $group['label'] ) ) {
+				$fields[ $group['slug'] ]['label'] = $group['label'];
+			}
 		}
 		return $fields;
 	}
@@ -80,28 +89,6 @@ abstract class Notion_WP_Sync_Abstract_Destination {
 	}
 
 	/**
-	 * Add field features for each post types
-	 *
-	 * @param array  $features Features.
-	 * @param string $post_type Post type.
-	 *
-	 * @return array
-	 */
-	public function add_features_by_post_type( $features, $post_type ) {
-		$features[ $this->slug ] = $this->get_features_by_post_type( $post_type );
-		return $features;
-	}
-
-	/**
-	 * Add field features for each post types
-	 *
-	 * @param string $post_type Post type.
-	 *
-	 * @return string[]
-	 */
-	abstract protected function get_features_by_post_type( $post_type );
-
-	/**
 	 * Assign fields to mapping group.
 	 */
 	abstract protected function get_group();
@@ -116,9 +103,10 @@ abstract class Notion_WP_Sync_Abstract_Destination {
 	/**
 	 * Get mapped fields for our destination specifically
 	 *
-	 * @param Notion_WP_Sync_Importer $importer Importer.
-	 * @param array                   $fields Fields.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
+	 * @param array                            $fields Fields.
 	 *
+	 * @TODO: double check why $fields parameter is not used and potentially remove it.
 	 * @return array
 	 */
 	protected function get_destination_mapping( $importer, $fields ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
@@ -140,8 +128,8 @@ abstract class Notion_WP_Sync_Abstract_Destination {
 	/**
 	 * Get source type from Notion id
 	 *
-	 * @param string                  $notion_id Notion field id.
-	 * @param Notion_WP_Sync_Importer $importer Importer.
+	 * @param string                           $notion_id Notion field id.
+	 * @param Notion_WP_Sync_Abstract_Importer $importer Importer.
 	 *
 	 * @return mixed|string
 	 */

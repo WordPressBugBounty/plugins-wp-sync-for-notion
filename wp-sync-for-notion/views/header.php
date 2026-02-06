@@ -18,7 +18,7 @@ return function () {
 
 				<img
 					class="notionwpsync-admin-header-logo" width="20"
-					src="<?php echo esc_attr( plugins_url( 'assets/images/notion-logo-black.svg', __DIR__ ) ); ?>"/>
+					src="<?php echo esc_attr( plugins_url( 'assets/images/wpconnect-logo-black.svg', __DIR__ ) ); ?>"/>
 				<span><?php esc_html_e( 'WP Sync for Notion', 'wp-sync-for-notion' ); ?></span>
 			</a>
 		</h2>
@@ -31,8 +31,9 @@ return function () {
 
 		<a class="notionwpsync-admin-header-wpco" href="https://wpconnect.co/" target="_blank">
 			<img
-				width="20"
-				src="<?php echo esc_attr( plugins_url( 'assets/images/logo-wpconnect.svg', __DIR__ ) ); ?>"/>
+				width="105"
+				height="14"
+				src="<?php echo esc_attr( plugins_url( 'assets/images/logo-wpconnect-v3.svg', __DIR__ ) ); ?>"/>
 		</a>
 	</div>
 	<?php

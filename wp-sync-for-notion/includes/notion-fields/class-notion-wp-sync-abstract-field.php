@@ -55,9 +55,9 @@ abstract class Notion_WP_Sync_Abstract_Field implements Notion_WP_Sync_Field_Int
 		foreach ( $classes as $class ) {
 			add_filter(
 				'notionwpsync/field-object/' . call_user_func( $class . '::get_object_type' ),
+				// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 				function ( $object_class ) use ( $class ) {
-					$object_class = $class;
-					return $object_class;
+					return $class;
 				}
 			);
 			call_user_func( $class . '::register' );
@@ -90,7 +90,7 @@ abstract class Notion_WP_Sync_Abstract_Field implements Notion_WP_Sync_Field_Int
 	 *
 	 * @var string|boolean
 	 */
-	protected $filter_type = 'text';
+	protected $filter_type = 'rich_text';
 
 	/**
 	 * Constructor
@@ -180,7 +180,8 @@ abstract class Notion_WP_Sync_Abstract_Field implements Notion_WP_Sync_Field_Int
 	 * {@inheritDoc}
 	 */
 	public function get_data() {
-		return $this->data;
+		// Clone object to make sure it can't be changed from the outside.
+		return clone $this->data;
 	}
 
 	/**

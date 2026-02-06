@@ -14,20 +14,9 @@ use Exception;
  */
 class Notion_WP_Sync_Metabox_Import_Infos {
 	/**
-	 * List of available importers
-	 *
-	 * @var Notion_WP_Sync_Importer[]
-	 */
-	protected $importers = array();
-
-	/**
 	 * Constructor
-	 *
-	 * @param Notion_WP_Sync_Importer[] $importers Available importers.
 	 */
-	public function __construct( $importers ) {
-		$this->importers = $importers;
-
+	public function __construct() {
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'wp_ajax_notion_wp_sync_trigger_update', array( $this, 'trigger_update' ) );
 		add_action( 'wp_ajax_notion_wp_sync_get_progress', array( $this, 'get_progress' ) );
@@ -50,10 +39,10 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 	/**
 	 * Output metabox HTML
 	 *
-	 * @param WP_Post $post The connection.
+	 * @param \WP_Post $post The connection.
 	 */
 	public function display( $post ) {
-		$importer            = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $post->ID );
+		$importer            = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $post->ID );
 		$importer_id         = $importer ? $importer->infos()->get( 'id' ) : 0;
 		$importer_is_running = $importer && $importer->get_run_id();
 		$view                = include_once NOTION_WP_SYNC_PLUGIN_DIR . 'views/metabox-import-infos.php';
@@ -69,11 +58,12 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 	public function trigger_update() {
 		// Nonce check.
 		check_ajax_referer( 'notion-wp-sync-trigger-update', 'nonce' );
+		Notion_WP_Sync_Helpers::check_ajax_admin_user_access();
 
 		$importer_id = (int) $_POST['importer'] ?? 0;
 
 		try {
-			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $importer_id );
+			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $importer_id );
 			if ( ! $importer ) {
 				throw new Exception( 'No connection found.' );
 			}
@@ -102,6 +92,7 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 		}
 	}
 
+
 	/**
 	 * Get sync progress
 	 *
@@ -110,11 +101,12 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 	public function get_progress() {
 		// Nonce check.
 		check_ajax_referer( 'notion-wp-sync-trigger-update', 'nonce' );
+		Notion_WP_Sync_Helpers::check_ajax_admin_user_access();
 
 		$importer_id = (int) $_POST['importer'] ?? 0;
 
 		try {
-			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $importer_id );
+			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $importer_id );
 			if ( ! $importer ) {
 				throw new Exception( 'No connection found.' );
 			}
@@ -148,7 +140,7 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 
 				// Shouldn't happen but make sure we went through end_run() if no actions left.
 				if ( count( $actions_remaining ) === 0 ) {
-					$importer->delete_removed_posts();
+					$importer->delete_removed_contents();
 					$importer->end_run( 'success' );
 				}
 			}
@@ -161,7 +153,8 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 					)
 				);
 			} else {
-				$progress_percent = count( $actions_remaining ) / count( $all_actions );
+				$finished_actions = count( $all_actions ) - count( $actions_remaining );
+				$progress_percent = $finished_actions / count( $all_actions );
 				$progress         = number_format( $progress_percent * 100 ) . '%';
 
 				wp_send_json_success(
@@ -189,11 +182,12 @@ class Notion_WP_Sync_Metabox_Import_Infos {
 	public function cancel_import() {
 		// Nonce check.
 		check_ajax_referer( 'notion-wp-sync-trigger-update', 'nonce' );
+		Notion_WP_Sync_Helpers::check_ajax_admin_user_access();
 
 		$importer_id = (int) $_POST['importer'] ?? 0;
 
 		try {
-			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( $this->importers, $importer_id );
+			$importer = Notion_WP_Sync_Helpers::get_importer_by_id( Notion_WP_Sync_Helpers::get_importers(), $importer_id );
 			if ( ! $importer ) {
 				throw new Exception( 'No connection found.' );
 			}

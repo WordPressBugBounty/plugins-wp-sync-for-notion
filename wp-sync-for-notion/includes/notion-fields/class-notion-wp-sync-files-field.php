@@ -40,16 +40,17 @@ class Notion_WP_Sync_Files_Field extends Notion_WP_Sync_Abstract_Field implement
 	 * @param array $params Extra params.
 	 */
 	public function get_string_value( $params ): string {
-		$files = $this->get_files_value( $params );
-		$urls  = array();
+		$notion_attachment_manager = Notion_WP_Sync_Services::get_instance()->get( 'attachment_manager' );
+		$files                     = $this->get_files_value( $params );
+		$urls                      = array();
 		foreach ( $files as $file_id ) {
-			$url = wp_get_attachment_url( $file_id );
+			$url = $notion_attachment_manager->get_attachment_url( $file_id );
 			if ( false !== $url ) {
 				$urls[] = $url;
 			}
 		}
 
-		return implode( _x( ', ', 'List separator', 'wp-sync-for-notion' ), $urls );
+		return implode( _x( ',', 'List separator', 'wp-sync-for-notion' ), $urls );
 	}
 
 	/**
@@ -63,7 +64,7 @@ class Notion_WP_Sync_Files_Field extends Notion_WP_Sync_Abstract_Field implement
 			return array();
 		}
 
-		$notion_attachment_manager = Notion_WP_Sync_Attachments_Manager::get_instance();
+		$notion_attachment_manager = Notion_WP_Sync_Services::get_instance()->get( 'attachment_manager' );
 		// Reformat files props.
 		$block_id = $this->data->id;
 		$files    = array_map(

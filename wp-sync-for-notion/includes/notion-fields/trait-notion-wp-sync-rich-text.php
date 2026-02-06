@@ -20,6 +20,6 @@ trait Notion_WP_Sync_Rich_Text_Trait {
 	 * @return string
 	 */
 	public function get_html_value( $params ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-		return Notion_WP_Sync_Rich_Text_Parser::get_instance()->parse_rich_text( $this->data->{$this->get_type()} );
+		return Notion_WP_Sync_Services::get_instance()->get( 'rich_text_parser' )->parse_rich_text( $this->data->{$this->get_type()} );
 	}
 }

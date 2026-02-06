@@ -16,6 +16,7 @@ class Notion_WP_Sync_Metabox_Field_Mapping {
 	 */
 	public function __construct() {
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
+		add_filter( 'notionwpsync/mapping_validation_rules', array( $this, 'add_mapping_validation_rules' ), 10, 1 );
 	}
 
 	/**
@@ -37,7 +38,18 @@ class Notion_WP_Sync_Metabox_Field_Mapping {
 	 * Output metabox HTML
 	 */
 	public function display() {
-		$view = include_once NOTION_WP_SYNC_PLUGIN_DIR . 'views/metabox-mapping.php';
-		$view();
+		$mapping_validation_rules = apply_filters( 'notionwpsync/mapping_validation_rules', array( 'required' ) );
+		$view                     = include_once NOTION_WP_SYNC_PLUGIN_DIR . 'views/metabox-mapping.php';
+		$view( $mapping_validation_rules );
+	}
+
+	/**
+	 * Add required mapping rule to mapping rules
+	 *
+	 * @param string[] $rules A list of rules.
+	 */
+	public function add_mapping_validation_rules( $rules ) {
+		$rules[] = 'mappingRequired';
+		return $rules;
 	}
 }
