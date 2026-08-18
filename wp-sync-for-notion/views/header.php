@@ -16,9 +16,6 @@ return function () {
 				class="notionwpsync-admin-header-link"
 				href="<?php echo esc_url( admin_url( 'edit.php?post_type=nwpsync-connection' ) ); ?>">
 
-				<img
-					class="notionwpsync-admin-header-logo" width="20"
-					src="<?php echo esc_attr( plugins_url( 'assets/images/wpconnect-logo-black.svg', __DIR__ ) ); ?>"/>
 				<span><?php esc_html_e( 'WP Sync for Notion', 'wp-sync-for-notion' ); ?></span>
 			</a>
 		</h2>

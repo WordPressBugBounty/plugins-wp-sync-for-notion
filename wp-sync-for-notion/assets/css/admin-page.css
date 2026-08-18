@@ -20,12 +20,7 @@
 
 .notionwpsync-admin-header h2 {
 	margin: 0;
-}
-
-.notionwpsync-admin-header-logo {
-	width: 34px;
-	height: auto;
-	margin-right: 12px;
+	font-size: 1.4em;
 }
 
 .notionwpsync-admin-header-wpco {

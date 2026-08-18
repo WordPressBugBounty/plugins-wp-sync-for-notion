@@ -3,9 +3,9 @@ Author: WP connect
 Author URI: https://wpconnect.co/
 Contributors: wpconnectco, staurand
 Tags: wpconnect, notion, api, automation, synchronization
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 1.7.1
+Stable tag: 1.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,20 @@ Make sure your integration is shared with your Notion pages. You can follow the 
 = How can I get support? =
 If you need assistance, open a ticket on the WordPress support forum.
 
+== External services ==
+
+This plugin connects to the **Notion API** to synchronize content into WordPress.
+
+**Service endpoint:** `https://api.notion.com`
+
+**What is sent and when:**
+
+* When a connection is created, edited, or tested: the Notion integration token (API key) and the requested page or database ID are sent to the Notion API to retrieve metadata.
+* On each manual or scheduled sync: the Notion integration token, the requested page/database IDs, and any configured query parameters (filters, pagination cursors) are sent to the Notion API. The API returns the page or database content (titles, properties, blocks) which is then stored in WordPress.
+
+**Notion Terms of Service:** https://www.notion.so/notion/Terms-and-Privacy-28ffdd083dc3473e9c2da6ec011b58ac
+**Notion Privacy Policy:** https://www.notion.so/notion/Privacy-Policy-3468d120cf614d4c9014c09f6adc9091
+
 == Screenshots ==
 
 1. Edit connection
@@ -128,6 +142,19 @@ If you need assistance, open a ticket on the WordPress support forum.
 4. Notion content block & Shortcode
 
 == Changelog ==
+
+= 1.7.2 =
+*Release Date: 14th August 2026*
+
+* Compatibility with WordPress 7.0
+* Improvement: Document the Notion API as an external service in the readme
+* Improvement: Remove the WP Connect logo from the admin header and enlarge the plugin title
+* Fix: Prevent content from being deleted when a sync is interrupted or a new sync starts before the previous one finishes
+
+= 1.7.1 =
+*Release Date: 20th Jan. 2026*
+
+* Security: Fix Broken Access Control ; add missing user capability check on ajax request
 
 [Full changelog](https://wpconnect.co/changelog/changelog-wp-sync-for-notion-free-version/)
 

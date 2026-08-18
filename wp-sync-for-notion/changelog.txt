@@ -1,6 +1,14 @@
 == Changelog ==
 === WP Sync for Notion - Notion to WordPress ===
 
+= 1.7.2 =
+*Release Date: 14th August 2026*
+
+* Compatibility with WordPress 7.0
+* Improvement: Document the Notion API as an external service in the readme
+* Improvement: Remove the WP Connect logo from the admin header and enlarge the plugin title
+* Fix: Prevent content from being deleted when a sync is interrupted or a new sync starts before the previous one finishes
+
 = 1.7.1 =
 *Release Date: 20th Jan. 2026*
 

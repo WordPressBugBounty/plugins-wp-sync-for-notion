@@ -32,6 +32,17 @@ class Notion_WP_Sync_Action_Consumer {
 		if ( ! $importer ) {
 			return;
 		}
+
+		// If the stored run_id no longer matches this action's run_id, a new sync
+		// has started (or the previous one was cancelled/errored) while this action
+		// was still queued. Discard the action so stale results never pollute the
+		// content_ids list and never trigger delete_removed_contents() for an
+		// incomplete sync.
+		if ( $run_id !== $importer->get_run_id() ) {
+			delete_option( $item_id );
+			return;
+		}
+
 		// Get Notion record saved as a temporary option.
 		$records = get_option( $item_id );
 		if ( ! $records ) {
